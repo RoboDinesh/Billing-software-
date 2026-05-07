@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Settings — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Settings</div>
+                    <div class="page-subtitle">Company profile, GST details, bank information</div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="saveSettings()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Save Settings
+                    </button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+
+                    <!-- Company Info -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">🏢 Company Information</span></div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Company Logo</label>
+                                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                                    <img id="logo-preview" src=""
+                                        style="width:60px;height:60px;object-fit:contain;border:1px solid var(--border);border-radius:8px;display:none">
+                                    <label class="btn btn-outline btn-sm" style="cursor:pointer">
+                                        Upload Logo
+                                        <input type="file" id="logo-input" accept="image/*"
+                                            onchange="handleLogoUpload(this)" style="display:none">
+                                    </label>
+                                    <button class="btn btn-ghost btn-sm" onclick="clearLogo()"
+                                        style="color:var(--error)">Remove</button>
+                                </div>
+                            </div>
+                            <div class="form-group"><label class="required">Company Name</label><input type="text"
+                                    id="s-name" placeholder="Sri Veranjaneya Engineering Works"></div>
+                            <div class="form-group"><label class="required">GSTIN</label><input type="text" id="s-gstin"
+                                    placeholder="29XXXXX1234Z1Z5" maxlength="15" style="text-transform:uppercase"
+                                    oninput="this.value=this.value.toUpperCase()"></div>
+                            <div class="form-group"><label>Address</label><textarea id="s-address" rows="2"
+                                    placeholder="Full address"></textarea></div>
+                            <div class="form-row">
+                                <div class="form-group"><label>City</label><input type="text" id="s-city"
+                                        placeholder="Shivamogga"></div>
+                                <div class="form-group"><label>State</label>
+                                    <select id="s-state-sel" onchange="onSettingsState()">
+                                        <option value="">Select State</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label>Phone</label><input type="tel" id="s-phone"
+                                        placeholder="+91 9876543210"></div>
+                                <div class="form-group"><label>Email</label><input type="email" id="s-email"
+                                        placeholder="info@company.com"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bank & Signature -->
+                    <div>
+                        <div class="card" style="margin-bottom:18px">
+                            <div class="card-header"><span class="card-title">🏦 Bank Details</span></div>
+                            <div class="card-body">
+                                <div class="form-group"><label>Bank Name</label><input type="text" id="s-bank"
+                                        placeholder="State Bank of India"></div>
+                                <div class="form-group"><label>Account Number</label><input type="text" id="s-acno"
+                                        placeholder="Account number"></div>
+                                <div class="form-row">
+                                    <div class="form-group"><label>IFSC Code</label><input type="text" id="s-ifsc"
+                                            placeholder="SBIN0001234" style="text-transform:uppercase"
+                                            oninput="this.value=this.value.toUpperCase()"></div>
+                                    <div class="form-group"><label>Branch</label><input type="text" id="s-branch"
+                                            placeholder="Shivamogga Branch"></div>
+                                </div>
+                                <div class="form-group"><label>Bank Address</label><input type="text" id="s-bank-addr"
+                                        placeholder="Bank Branch Address"></div>
+                                <div class="form-group"><label>REPTID Number</label><input type="text" id="s-reptid"
+                                        placeholder="REPTID number"></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header"><span class="card-title">✍️ Digital Signature</span></div>
+                            <div class="card-body">
+                                <div class="tabs">
+                                    <button class="tab active" onclick="switchSigTab('draw')">Draw Signature</button>
+                                    <button class="tab" onclick="switchSigTab('upload')">Upload Image</button>
+                                </div>
+                                <div id="sig-draw-tab">
+                                    <canvas id="sig-canvas" class="signature-pad" width="380" height="100"
+                                        style="width:100%"></canvas>
+                                    <div style="margin-top:6px;display:flex;gap:8px">
+                                        <button class="btn btn-ghost btn-sm" id="sig-clear">Clear</button>
+                                        <button class="btn btn-outline btn-sm" onclick="saveSigFromCanvas()">Use This
+                                            Signature</button>
+                                    </div>
+                                </div>
+                                <div id="sig-upload-tab" style="display:none">
+                                    <label class="btn btn-outline btn-sm" style="cursor:pointer;margin-bottom:8px">
+                                        Upload Signature Image
+                                        <input type="file" accept="image/*" onchange="handleSigUpload(this)"
+                                            style="display:none">
+                                    </label>
+                                </div>
+                                <div id="sig-preview-wrap" style="margin-top:10px;display:none">
+                                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Current
+                                        Signature:</div>
+                                    <img id="sig-preview"
+                                        style="max-height:60px;border:1px solid var(--border);border-radius:8px;padding:4px">
+                                    <button class="btn btn-ghost btn-sm" onclick="clearSig()"
+                                        style="color:var(--error);display:block;margin-top:4px">Remove
+                                        Signature</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Print Customization -->
+                    <div class="card" style="grid-column:1/-1">
+                        <div class="card-header"><span class="card-title">🖨️ Print Customization</span></div>
+                        <div class="card-body">
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
+                                <label class="checkbox-container" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                    <input type="checkbox" id="s-show-logo" style="width:20px; height:20px;">
+                                    <span>Show Logo on Invoice/Quotation</span>
+                                </label>
+                                <label class="checkbox-container" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                    <input type="checkbox" id="s-show-bank" style="width:20px; height:20px;">
+                                    <span>Show Bank Details on Invoice</span>
+                                </label>
+                                <label class="checkbox-container" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                    <input type="checkbox" id="s-show-signature" style="width:20px; height:20px;">
+                                    <span>Show Digital Signature</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Terms & Defaults (full width) -->
+                    <div class="card" style="grid-column:1/-1">
+                        <div class="card-header"><span class="card-title">📋 Default Terms & Conditions</span></div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Default Terms (applied to all new invoices/quotations)</label>
+                                <textarea id="s-terms" rows="4"
+                                    placeholder="1. All disputes subject to Shivamogga jurisdiction.&#10;2. Goods once sold will not be taken back.&#10;3. Payment due within 30 days."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data & Migration (Admin Only) -->
+                    <div class="card" style="grid-column:1/-1">
+                        <div class="card-header">
+                            <span class="card-title">💾 Data & Migration</span>
+                            <div id="db-mode-badge" class="badge"></div>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px">Use these tools to backup your data or migrate your local entries to the live Hostinger database.</p>
+                            <div style="display:flex; gap:12px; flex-wrap:wrap">
+                                <button class="btn btn-outline" onclick="exportData()">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    Export All Data (JSON)
+                                </button>
+                                <label class="btn btn-outline" style="cursor:pointer">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                    Import Data File
+                                    <input type="file" accept=".json" onchange="importData(this)" style="display:none">
+                                </label>
+                                <div id="sync-container" style="display:none">
+                                    <button class="btn btn-primary" onclick="syncLocalToLive()" id="sync-btn">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                        Sync Local to Live Database
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="data-stats" style="margin-top:15px; font-size:12px; color:var(--text-muted); display:none"></div>
+                        </div>
+                    </div>
+
+                    <!-- User Management (Admin Only) -->
+                    <div class="card" style="grid-column:1/-1" id="user-section">
+                        <div class="card-header">
+                            <span class="card-title">👥 User Management</span>
+                            <button class="btn btn-primary btn-sm" onclick="openUserForm()">Add User</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Username</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal-overlay modal-sm" id="user-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <span class="modal-title" id="user-modal-title">Add User</span>
+                <button class="modal-close" onclick="closeModal('user-modal')"><svg fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="user-edit-id">
+                <div class="form-group"><label class="required">Full Name</label><input type="text" id="u-name"
+                        placeholder="Full name"></div>
+                <div class="form-group"><label class="required">Username</label><input type="text" id="u-username"
+                        placeholder="Login username"></div>
+                <div class="form-group"><label class="required">Password</label><input type="password" id="u-password"
+                        placeholder="Password"></div>
+                <div class="form-group"><label>Role</label>
+                    <select id="u-role">
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('user-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveUser()">Save User</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('settings.html');
+            initSidebarUser();
+
+            // Populate state dropdown
+            document.getElementById('s-state-sel').innerHTML = '<option value="">Select State</option>' + stateOptions();
+
+            // Load settings
+            const S = DB.getSettings();
+            document.getElementById('s-name').value = S.name || '';
+            document.getElementById('s-gstin').value = S.gstin || '';
+            document.getElementById('s-address').value = S.address || '';
+            document.getElementById('s-city').value = S.city || '';
+            document.getElementById('s-state-sel').value = S.stateCode || '29';
+            document.getElementById('s-phone').value = S.phone || '';
+            document.getElementById('s-email').value = S.email || '';
+            document.getElementById('s-bank').value = S.bankName || '';
+            document.getElementById('s-acno').value = S.bankAccount || '';
+            document.getElementById('s-ifsc').value = S.bankIFSC || '';
+            document.getElementById('s-branch').value = S.bankBranch || '';
+            document.getElementById('s-bank-addr').value = S.bankAddress || '';
+            document.getElementById('s-reptid').value = S.reptid || '';
+            document.getElementById('s-terms').value = S.termsConditions || '';
+
+            document.getElementById('s-show-logo').checked = S.showLogo !== false;
+            document.getElementById('s-show-bank').checked = S.showBank !== false;
+            document.getElementById('s-show-signature').checked = S.showSignature !== false;
+
+            if (S.logo) {
+                const img = document.getElementById('logo-preview');
+                img.src = S.logo; img.style.display = 'block';
+            }
+            if (S.signature) {
+                const img = document.getElementById('sig-preview');
+                img.src = S.signature;
+                document.getElementById('sig-preview-wrap').style.display = 'block';
+            }
+
+            updateModeUI();
+            renderUsers();
+            initSignaturePad('sig-canvas', 'sig-clear');
+        });
+
+        function updateModeUI() {
+            const mode = DB.getMode();
+            const badge = document.getElementById('db-mode-badge');
+            badge.textContent = mode === 'api' ? 'Live Mode (Hostinger)' : 'Local Mode (Browser)';
+            badge.className = 'badge ' + (mode === 'api' ? 'badge-success' : 'badge-warning');
+
+            if (mode === 'api') {
+                document.getElementById('sync-container').style.display = 'none';
+            } else {
+                document.getElementById('sync-container').style.display = 'block';
+                const stats = DB.getAllData();
+                document.getElementById('data-stats').style.display = 'block';
+                document.getElementById('data-stats').textContent = `Local storage contains: ${stats.customers.length} customers, ${stats.invoices.length} invoices, ${stats.products.length} products.`;
+            }
+        }
+
+        function exportData() {
+            const data = DB.getAllData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `billing_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            toast('Backup downloaded!');
+        }
+
+        async function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (confirm('This will OVERWRITE your current settings and local data. Continue?')) {
+                        localStorage.setItem('vew_settings', JSON.stringify(data.settings || {}));
+                        localStorage.setItem('vew_customers', JSON.stringify(data.customers || []));
+                        localStorage.setItem('vew_products', JSON.stringify(data.products || []));
+                        localStorage.setItem('vew_invoices', JSON.stringify(data.invoices || []));
+                        localStorage.setItem('vew_quotations', JSON.stringify(data.quotations || []));
+                        localStorage.setItem('vew_challans', JSON.stringify(data.challans || []));
+                        localStorage.setItem('vew_labors', JSON.stringify(data.labors || []));
+                        localStorage.setItem('vew_ledger', JSON.stringify(data.ledger || []));
+                        localStorage.setItem('vew_users', JSON.stringify(data.users || []));
+                        alert('Data imported successfully. Reloading...');
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert('Invalid file format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function syncLocalToLive() {
+            const btn = document.getElementById('sync-btn');
+            btn.disabled = true; btn.textContent = 'Syncing...';
+            
+            try {
+                // This would be a bulk operation if the API supported it, 
+                // for now we warn the user that they should use the SQL import if data is large.
+                alert('For large amounts of data, please use the provided "database.sql" file to import into Hostinger. This button is for quick settings sync.');
+                const data = DB.getAllData();
+                // Logic to push settings to API
+                await DB.fetchAPI('save_settings', data.settings);
+                toast('Settings synced to live database!');
+                location.reload();
+            } catch (err) {
+                toast('Sync failed: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Sync Local to Live Database';
+            }
+        }
+
+        function handleLogoUpload(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('logo-preview').src = e.target.result;
+                document.getElementById('logo-preview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearLogo() {
+            document.getElementById('logo-preview').src = '';
+            document.getElementById('logo-preview').style.display = 'none';
+            document.getElementById('logo-input').value = '';
+        }
+
+        function switchSigTab(tab) {
+            document.getElementById('sig-draw-tab').style.display = tab === 'draw' ? '' : 'none';
+            document.getElementById('sig-upload-tab').style.display = tab === 'upload' ? '' : 'none';
+            document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0 && tab === 'draw') || (i === 1 && tab === 'upload')));
+        }
+
+        function saveSigFromCanvas() {
+            const canvas = document.getElementById('sig-canvas');
+            const data = canvas.toDataURL();
+            document.getElementById('sig-preview').src = data;
+            document.getElementById('sig-preview-wrap').style.display = 'block';
+            toast('Signature saved');
+        }
+
+        function handleSigUpload(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('sig-preview').src = e.target.result;
+                document.getElementById('sig-preview-wrap').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearSig() {
+            document.getElementById('sig-preview').src = '';
+            document.getElementById('sig-preview-wrap').style.display = 'none';
+        }
+
+        async function saveSettings() {
+            const stateCode = document.getElementById('s-state-sel').value;
+            const Scur = DB.getSettings();
+            const st = getStateByCode(stateCode);
+            const data = {
+                name: document.getElementById('s-name').value.trim(),
+                gstin: document.getElementById('s-gstin').value.trim(),
+                address: document.getElementById('s-address').value.trim(),
+                city: document.getElementById('s-city').value.trim(),
+                state: st ? st.name : Scur.state,
+                stateCode: stateCode || Scur.stateCode,
+                phone: document.getElementById('s-phone').value.trim(),
+                email: document.getElementById('s-email').value.trim(),
+                bankName: document.getElementById('s-bank').value.trim(),
+                bankAccount: document.getElementById('s-acno').value.trim(),
+                bankIFSC: document.getElementById('s-ifsc').value.trim(),
+                bankBranch: document.getElementById('s-branch').value.trim(),
+                bankAddress: document.getElementById('s-bank-addr').value.trim(),
+                reptid: document.getElementById('s-reptid').value.trim(),
+                termsConditions: document.getElementById('s-terms').value,
+                logo: document.getElementById('logo-preview').src || '',
+                signature: document.getElementById('sig-preview').src || '',
+                showLogo: document.getElementById('s-show-logo').checked,
+                showBank: document.getElementById('s-show-bank').checked,
+                showSignature: document.getElementById('s-show-signature').checked
+            };
+            await DB.saveSettings(data);
+            toast('Settings saved successfully!');
+        }
+
+        // User management
+        function renderUsers() {
+            const users = DB.getUsers();
+            document.getElementById('users-tbody').innerHTML = users.map(u => `
+    <tr>
+      <td><strong>${u.name}</strong></td>
+      <td><code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${u.username}</code></td>
+      <td><span class="badge ${u.role === 'admin' ? 'badge-primary' : 'badge-secondary'}">${u.role === 'admin' ? 'Admin' : 'Staff'}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" onclick="openUserForm('${u.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          ${u.username !== 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="delUser('${u.id}')" style="color:var(--error)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+        }
+
+        function openUserForm(editId = null) {
+            const u = editId ? DB.getUsers().find(x => x.id === editId) : null;
+            document.getElementById('user-edit-id').value = editId || '';
+            document.getElementById('user-modal-title').textContent = editId ? 'Edit User' : 'Add User';
+            document.getElementById('u-name').value = u ? u.name : '';
+            document.getElementById('u-username').value = u ? u.username : '';
+            document.getElementById('u-password').value = '';
+            document.getElementById('u-role').value = u ? u.role : 'staff';
+            openModal('user-modal');
+        }
+
+        function saveUser() {
+            const name = document.getElementById('u-name').value.trim();
+            const username = document.getElementById('u-username').value.trim();
+            const password = document.getElementById('u-password').value;
+            const role = document.getElementById('u-role').value;
+            if (!name || !username) { toast('Name and username required', 'error'); return; }
+            const users = DB.getUsers();
+            const editId = document.getElementById('user-edit-id').value;
+            if (editId) {
+                const u = users.find(x => x.id === editId);
+                if (u) { u.name = name; u.username = username; u.role = role; if (password) u.password = password; }
+            } else {
+                if (users.find(x => x.username === username)) { toast('Username already exists', 'error'); return; }
+                if (!password) { toast('Password required for new user', 'error'); return; }
+                users.push({ id: 'U' + Date.now(), name, username, password, role });
+            }
+            DB.saveUsers(users);
+            toast('User saved!'); closeModal('user-modal'); renderUsers();
+        }
+
+        function delUser(id) {
+            if (!confirm('Delete this user?')) return;
+            const users = DB.getUsers().filter(u => u.id !== id);
+            DB.saveUsers(users); toast('User deleted', 'warning'); renderUsers();
+        }
+
+        renderUsers();
+    </script>
+</body>
+
+</html>

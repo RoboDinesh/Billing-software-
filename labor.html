@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Labor Management — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Labor Management</div>
+                    <div class="page-subtitle">Track worker daily wages, piece-rate works and payments</div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-bar">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search workers..." oninput="renderLabors()">
+                    </div>
+                    <button class="btn btn-primary" onclick="openCreateLabor()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Labor
+                    </button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Worker List</span>
+                        <span id="labor-count" style="font-size:12px;color:var(--text-muted)"></span>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Phone</th>
+                                    <th>Base Rate/Wage</th>
+                                    <th>Total Work (₹)</th>
+                                    <th>Total Paid/Adv (₹)</th>
+                                    <th>Balance Due (₹)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="labor-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Labor Modal -->
+    <div class="modal-overlay modal-sm" id="create-labor-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <span class="modal-title" id="lb-modal-title">Add Labor</span>
+                <button class="modal-close" onclick="closeModal('create-labor-modal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="lb-edit-id">
+                <div class="form-group"><label class="required">Name</label><input type="text" id="lb-name" placeholder="Full name"></div>
+                <div class="form-group"><label>Phone</label><input type="text" id="lb-phone" placeholder="Phone number"></div>
+                <div class="form-group"><label class="required">Work Type</label>
+                    <select id="lb-type">
+                        <option value="daily">Daily Wage (Per Day)</option>
+                        <option value="piece">Piece Rate (Per Work)</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Base Rate (₹)</label><input type="number" id="lb-rate" placeholder="Default rate" min="0" step="any"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('create-labor-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveLabor()">Save Labor</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labor Ledger Modal -->
+    <div class="modal-overlay modal-xl" id="ledger-modal">
+        <div class="modal modal-xl">
+            <div class="modal-header no-print">
+                <span class="modal-title" id="ledger-title" style="display:flex;align-items:center;gap:12px">
+                    Ledger
+                    <span id="ledger-bal-badge" class="badge">Balance: ₹0.00</span>
+                </span>
+                <div style="display:flex;gap:8px;margin-left:auto">
+                    <button class="btn btn-outline btn-sm" onclick="window.print()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Print</button>
+                    <button class="modal-close" onclick="closeModal('ledger-modal'); renderLabors();"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding-top:0">
+                <div class="no-print" style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:12px">
+                    <button class="btn btn-primary btn-sm" onclick="openAddEntry('work')">+ Add Work / Entry</button>
+                    <button class="btn btn-outline btn-sm" onclick="openAddEntry('payment')" style="color:var(--error);border-color:var(--error)">- Add Payment / Advance</button>
+                    <button class="btn btn-outline btn-sm" onclick="openAddEntry('weekly')" style="color:var(--accent);border-color:var(--accent)">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Weekly Payment
+                    </button>
+                </div>
+                <div id="print-ledger-wrap">
+                    <div style="text-align:center;margin-bottom:12px;display:none" class="only-print">
+                        <h2 id="print-ledger-name" style="margin:0"></h2>
+                        <p>Statement of Work & Payments</p>
+                    </div>
+                    <table class="table" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th style="text-align:center">Qty / Days</th>
+                                <th style="text-align:right">Rate</th>
+                                <th style="text-align:right;color:var(--success)">Credit (Work)</th>
+                                <th style="text-align:right;color:var(--error)">Debit (Paid)</th>
+                                <th style="text-align:right">Running Bal.</th>
+                                <th class="no-print" style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-tbody"></tbody>
+                        <tfoot id="ledger-tfoot" style="font-weight:700;border-top:2px solid var(--border)"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Entry Modal -->
+    <div class="modal-overlay modal-sm" id="entry-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <span class="modal-title" id="entry-title">Add Entry</span>
+                <button class="modal-close" onclick="closeModal('entry-modal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="entry-type">
+                <div class="form-group"><label class="required">Date</label><input type="date" id="ent-date" required></div>
+                <div class="form-group"><label class="required">Description</label><input type="text" id="ent-desc" placeholder="e.g. Daily wage, Advance, etc."></div>
+                <div class="form-row" id="ent-work-fields">
+                    <div class="form-group"><label>Qty / Days</label><input type="number" id="ent-qty" step="any" min="0" value="1" oninput="calcEntTotal()"></div>
+                    <div class="form-group"><label>Rate (₹)</label><input type="number" id="ent-rate" step="any" min="0" oninput="calcEntTotal()"></div>
+                </div>
+                <div class="form-group"><label>Reference Number</label><input type="text" id="ent-refno" placeholder="Ref. No. (optional)"></div>
+                <div class="form-group"><label class="required">Total Amount (₹)</label><input type="number" id="ent-amount" step="any" min="0"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('entry-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEntry()" id="ent-save-btn">Save Entry</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        Auth.require();
+
+        let currentLaborId = null;
+
+        function calcLaborBalances() {
+            const ledgers = DB.getLaborLedger();
+            const totals = {};
+            ledgers.forEach(e => {
+                if (!totals[e.laborId]) totals[e.laborId] = { work: 0, payment: 0 };
+                if (e.type === 'work') totals[e.laborId].work += (e.amount || 0);
+                if (e.type === 'payment' || e.type === 'advance') totals[e.laborId].payment += (e.amount || 0);
+            });
+            return totals;
+        }
+
+        function renderLabors() {
+            const search = (document.getElementById('search-input').value || '').toLowerCase();
+            let labors = DB.getLabors().slice().sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+            if (search) labors = labors.filter(l => (l.name||'').toLowerCase().includes(search));
+            
+            const bals = calcLaborBalances();
+            document.getElementById('labor-count').textContent = `${labors.length} worker${labors.length !== 1 ? 's' : ''}`;
+            
+            const tbody = document.getElementById('labor-tbody');
+            if (labors.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><h3>No labor records</h3><p>Add your first worker</p></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = labors.map(lb => {
+                const b = bals[lb.id] || { work: 0, payment: 0 };
+                const net = b.work - b.payment;
+                const netColor = net < 0 ? 'var(--error)' : net > 0 ? 'var(--success)' : 'inherit';
+                return `<tr>
+                    <td><strong>${lb.name}</strong></td>
+                    <td><span class="badge ${lb.type === 'daily' ? 'badge-info' : 'badge-warning'}">${lb.type === 'daily' ? 'Daily Wage' : 'Piece Rate'}</span></td>
+                    <td>${lb.phone || '-'}</td>
+                    <td>${fmtCur(lb.baseRate)}</td>
+                    <td style="color:var(--success)">${fmtCur(b.work)}</td>
+                    <td style="color:var(--error)">${fmtCur(b.payment)}</td>
+                    <td><strong style="color:${netColor}">${fmtCur(net)}</strong></td>
+                    <td>
+                        <div style="display:flex;gap:4px">
+                            <button class="btn btn-outline btn-sm" onclick="viewLedger('${lb.id}')">Ledger</button>
+                            <button class="btn btn-ghost btn-sm" title="Edit" onclick="openCreateLabor('${lb.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                            <button class="btn btn-ghost btn-sm" title="Delete" onclick="deleteLabor('${lb.id}')" style="color:var(--error)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function openCreateLabor(id = null) {
+            const lb = id ? DB.getLabor(id) : null;
+            document.getElementById('lb-edit-id').value = id || '';
+            document.getElementById('lb-modal-title').textContent = id ? 'Edit Labor' : 'Add Labor';
+            document.getElementById('lb-name').value = lb ? lb.name : '';
+            document.getElementById('lb-phone').value = lb ? lb.phone : '';
+            document.getElementById('lb-type').value = lb ? lb.type : 'daily';
+            document.getElementById('lb-rate').value = lb ? lb.baseRate : '';
+            openModal('create-labor-modal');
+        }
+
+        async function saveLabor() {
+            const name = document.getElementById('lb-name').value.trim();
+            if (!name) { toast('Name is required', 'error'); return; }
+            const data = {
+                name,
+                phone: document.getElementById('lb-phone').value.trim(),
+                type: document.getElementById('lb-type').value,
+                baseRate: parseFloat(document.getElementById('lb-rate').value) || 0
+            };
+            const id = document.getElementById('lb-edit-id').value;
+            if (id) { await DB.updateLabor(id, data); toast('Labor updated!'); }
+            else { await DB.addLabor(data); toast('Labor added!'); }
+            closeModal('create-labor-modal');
+            renderLabors();
+        }
+
+        function deleteLabor(id) {
+            if (!confirm('Delete this worker and ALL their ledger history?')) return;
+            DB.deleteLabor(id);
+            toast('Labor deleted', 'warning');
+            renderLabors();
+        }
+
+        function viewLedger(id) {
+            currentLaborId = id;
+            const lb = DB.getLabor(id);
+            if (!lb) return;
+            document.getElementById('ledger-title').innerHTML = `Ledger: ${lb.name} <span id="ledger-bal-badge" class="badge"></span>`;
+            document.getElementById('print-ledger-name').textContent = `Worker: ${lb.name}`;
+            renderLedger();
+            openModal('ledger-modal');
+        }
+
+        function renderLedger() {
+            if (!currentLaborId) return;
+            let entries = DB.getLaborLedger().filter(e => e.laborId === currentLaborId);
+            entries.sort((a,b) => new Date(a.entryDate||a.date) - new Date(b.entryDate||b.date));
+
+            let runBal = 0;
+            let tw = 0; let ta = 0;
+            const tbody = document.getElementById('ledger-tbody');
+            if (entries.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div style="text-align:center;padding:24px;color:var(--text-muted)">No entries found. Add work or payment.</div></td></tr>`;
+                document.getElementById('ledger-bal-badge').textContent = `Balance: ₹0.00`;
+                document.getElementById('ledger-bal-badge').className = `badge badge-info`;
+                document.getElementById('ledger-tfoot').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = entries.map(e => {
+                const edate = e.entryDate || e.date;
+                let rowHtml = `<tr>
+                    <td>${fmtDate(edate)}</td>
+                    <td>
+                        <strong>${e.description}</strong><br>
+                        <small style="color:var(--text-muted)">${e.type === 'work' ? 'Work/Wages' : 'Advance/Paid'}</small>
+                        ${e.referenceNo ? `<div style="font-size:10px;color:var(--accent);margin-top:2px">Ref: ${e.referenceNo}</div>` : ''}
+                    </td>
+                    <td style="text-align:center">${e.type === 'work' && e.qty ? e.qty : '-'}</td>
+                    <td style="text-align:right">${e.type === 'work' && e.rate ? fmtCur(e.rate) : '-'}</td>
+                    <td style="text-align:right;color:var(--success)">${e.type === 'work' ? fmtCur(e.amount) : '-'}</td>
+                    <td style="text-align:right;color:var(--error)">${(e.type === 'payment' || e.type === 'advance') ? fmtCur(e.amount) : '-'}</td>`;
+                
+                if (e.type === 'work') { runBal += e.amount; tw += e.amount; }
+                else { runBal -= e.amount; ta += e.amount; }
+                const rc = runBal < 0 ? 'color:var(--error)' : runBal > 0 ? 'color:var(--success)' : '';
+                
+                rowHtml += `<td style="text-align:right;${rc}"><strong>${fmtCur(runBal)}</strong></td>
+                    <td class="no-print" style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="deleteEntry('${e.id}')" style="color:var(--error)"><svg fill="none" width="14" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></td>
+                </tr>`;
+                return rowHtml;
+            }).join('');
+
+            document.getElementById('ledger-tfoot').innerHTML = `<tr>
+                <td colspan="4" style="text-align:right">TOTALS:</td>
+                <td style="text-align:right;color:var(--success)">${fmtCur(tw)}</td>
+                <td style="text-align:right;color:var(--error)">${fmtCur(ta)}</td>
+                <td style="text-align:right;color:${runBal<0?'var(--error)':'var(--success)'}">${fmtCur(runBal)}</td>
+                <td class="no-print"></td>
+            </tr>`;
+
+            const bb = document.getElementById('ledger-bal-badge');
+            bb.textContent = `Balance: ${fmtCur(runBal)}`;
+            bb.className = `badge ${runBal < 0 ? 'badge-error' : runBal > 0 ? 'badge-success' : 'badge-info'}`;
+        }
+
+        function openAddEntry(type) {
+            document.getElementById('entry-type').value = (type === 'weekly' || type === 'payment' || type === 'advance') ? 'payment' : 'work';
+            document.getElementById('entry-title').textContent = type === 'work' ? 'Add Work / Wages' : (type === 'weekly' ? 'Weekly Payment' : 'Add Payment / Advance');
+            document.getElementById('ent-date').value = today();
+            
+            const lb = DB.getLabor(currentLaborId);
+            if (type === 'work') {
+                document.getElementById('ent-work-fields').style.display = 'flex';
+                document.getElementById('ent-desc').value = lb && lb.type === 'daily' ? 'Daily Wage' : 'Piece Work';
+                document.getElementById('ent-qty').value = '1';
+                document.getElementById('ent-rate').value = lb ? lb.baseRate : '0';
+                document.getElementById('ent-amount').readOnly = true;
+                calcEntTotal();
+            } else if (type === 'weekly') {
+                document.getElementById('ent-work-fields').style.display = 'none';
+                document.getElementById('ent-desc').value = 'Weekly Payment';
+                document.getElementById('ent-qty').value = '';
+                document.getElementById('ent-rate').value = '';
+                document.getElementById('ent-amount').readOnly = false;
+                
+                // Pre-fill amount with running balance if positive
+                let entries = DB.getLaborLedger().filter(e => e.laborId === currentLaborId);
+                let runBal = 0;
+                entries.forEach(e => {
+                    if (e.type === 'work') runBal += e.amount;
+                    else runBal -= e.amount;
+                });
+                document.getElementById('ent-amount').value = runBal > 0 ? runBal.toFixed(2) : '';
+            } else {
+                document.getElementById('ent-work-fields').style.display = 'none';
+                document.getElementById('ent-desc').value = 'Advance / Cash Paid';
+                document.getElementById('ent-qty').value = '';
+                document.getElementById('ent-rate').value = '';
+                document.getElementById('ent-amount').readOnly = false;
+                document.getElementById('ent-amount').value = '';
+            }
+            document.getElementById('ent-refno').value = '';
+            openModal('entry-modal');
+        }
+
+        function calcEntTotal() {
+            if (document.getElementById('entry-type').value !== 'work') return;
+            const q = parseFloat(document.getElementById('ent-qty').value) || 0;
+            const r = parseFloat(document.getElementById('ent-rate').value) || 0;
+            document.getElementById('ent-amount').value = (q * r).toFixed(2);
+        }
+
+        async function saveEntry() {
+            const date = document.getElementById('ent-date').value;
+            const desc = document.getElementById('ent-desc').value.trim();
+            const amt = parseFloat(document.getElementById('ent-amount').value);
+            const type = document.getElementById('entry-type').value;
+
+            if (!date || !desc || !amt || amt <= 0) { toast('Please fill all valid details', 'error'); return; }
+
+            const e = { 
+                laborId: currentLaborId, 
+                entryDate: date, 
+                description: desc, 
+                type, 
+                amount: amt,
+                referenceNo: document.getElementById('ent-refno').value.trim()
+            };
+            if (type === 'work') {
+                e.qty = parseFloat(document.getElementById('ent-qty').value) || 0;
+                e.rate = parseFloat(document.getElementById('ent-rate').value) || 0;
+            }
+
+            await DB.addLaborLedger(e);
+            toast(type === 'work' ? 'Work added' : 'Payment added');
+            closeModal('entry-modal');
+            renderLedger();
+        }
+
+        async function deleteEntry(id) {
+            if (!confirm('Delete this ledger entry?')) return;
+            await DB.deleteLaborLedger(id);
+            toast('Entry deleted', 'warning');
+            renderLedger();
+        }
+
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('labor.html');
+            initSidebarUser();
+            renderLabors();
+        });
+    </script>
+</body>
+</html>

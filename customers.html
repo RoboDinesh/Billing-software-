@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Customers — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Customers</div>
+                    <div class="page-subtitle">Manage your customer database with GST details</div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-bar">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                        <input type="text" id="search-input" placeholder="Search customers..." oninput="renderList()">
+                    </div>
+                    <button class="btn btn-primary" onclick="openForm()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Add Customer
+                    </button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Customer List</span>
+                        <span id="count" style="font-size:12px;color:var(--text-muted)"></span>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>GSTIN</th>
+                                    <th>City</th>
+                                    <th>State</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Invoices</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="c-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Modal -->
+    <div class="modal-overlay" id="form-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Add Customer</span>
+                <button class="modal-close" onclick="closeModal('form-modal')">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label class="required">Customer Name</label><input type="text" id="f-name" placeholder="Full name or company name"></div>
+                    <div class="form-group"><label>GSTIN</label><input type="text" id="f-gstin" placeholder="29XXXXX1234Z1Z5" maxlength="15" oninput="this.value=this.value.toUpperCase()"></div>
+                </div>
+                <div class="form-group"><label>Address</label><textarea id="f-address" rows="2" placeholder="Street address"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>City</label><input type="text" id="f-city" placeholder="City"></div>
+                    <div class="form-group"><label>State</label>
+                        <select id="f-state">
+                            <option value="">Select State</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>PIN Code</label><input type="text" id="f-pin" placeholder="560001" maxlength="6"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="required">Phone</label><input type="tel" id="f-phone" placeholder="+91 9876543210"></div>
+                    <div class="form-group"><label>Email</label><input type="email" id="f-email" placeholder="customer@email.com"></div>
+                </div>
+                <div class="form-group"><label>Notes</label><input type="text" id="f-notes" placeholder="Any notes about this customer"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('form-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        Auth.require();
+
+        function openForm(editId) {
+            editId = editId || null;
+            const c = editId ? DB.getCustomer(editId) : null;
+            document.getElementById('edit-id').value = editId || '';
+            document.getElementById('modal-title').textContent = editId ? 'Edit Customer' : 'Add Customer';
+            document.getElementById('f-name').value = c ? (c.name || '') : '';
+            document.getElementById('f-gstin').value = c ? (c.gstin || '') : '';
+            document.getElementById('f-address').value = c ? (c.address || '') : '';
+            document.getElementById('f-city').value = c ? (c.city || '') : '';
+            document.getElementById('f-state').innerHTML = '<option value="">Select State</option>' + stateOptions(c ? c.stateCode : '');
+            document.getElementById('f-pin').value = c ? (c.pin || '') : '';
+            document.getElementById('f-phone').value = c ? (c.phone || '') : '';
+            document.getElementById('f-email').value = c ? (c.email || '') : '';
+            document.getElementById('f-notes').value = c ? (c.notes || '') : '';
+            openModal('form-modal');
+        }
+
+        async function saveCustomer() {
+            const name = document.getElementById('f-name').value.trim();
+            if (!name) { toast('Customer name is required', 'error'); return; }
+            const code = document.getElementById('f-state').value;
+            const st = getStateByCode(code);
+            const data = {
+                name,
+                gstin: document.getElementById('f-gstin').value.trim(),
+                address: document.getElementById('f-address').value.trim(),
+                city: document.getElementById('f-city').value.trim(),
+                state: st ? st.name : '',
+                stateCode: code,
+                pin: document.getElementById('f-pin').value.trim(),
+                phone: document.getElementById('f-phone').value.trim(),
+                email: document.getElementById('f-email').value.trim(),
+                notes: document.getElementById('f-notes').value.trim()
+            };
+            const editId = document.getElementById('edit-id').value;
+            if (editId) {
+                await DB.updateCustomer(editId, data);
+                toast('Customer updated!');
+            } else {
+                await DB.addCustomer(data);
+                toast('Customer added!');
+            }
+            closeModal('form-modal');
+            renderList();
+        }
+
+        function renderList() {
+            const search = (document.getElementById('search-input').value || '').toLowerCase();
+            let list = DB.getCustomers().slice().sort((a, b) => (a.name || '').localeCompare(b.name));
+            if (search) list = list.filter(c =>
+                (c.name || '').toLowerCase().includes(search) ||
+                (c.gstin || '').toLowerCase().includes(search) ||
+                (c.phone || '').includes(search)
+            );
+            document.getElementById('count').textContent = `${list.length} customer${list.length !== 1 ? 's' : ''}`;
+            const tbody = document.getElementById('c-tbody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <h3>No customers yet</h3><p>Add your first customer to get started</p>
+                    <button class="btn btn-primary" onclick="openForm()">Add Customer</button>
+                </div></td></tr>`;
+                return;
+            }
+            const invoices = DB.getInvoices();
+            tbody.innerHTML = list.map(c => {
+                const custInv = invoices.filter(i => i.customerId === c.id);
+                const avatar = (c.name || '?').charAt(0).toUpperCase();
+                return `<tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:32px;height:32px;background:var(--accent-light);color:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${avatar}</div>
+                            <div><div style="font-weight:600">${c.name}</div>${c.notes ? `<div style="font-size:11px;color:var(--text-muted)">${c.notes}</div>` : ''}</div>
+                        </div>
+                    </td>
+                    <td>${c.gstin ? `<code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${c.gstin}</code>` : '-'}</td>
+                    <td>${c.city || '-'}</td>
+                    <td>${c.state || '-'}</td>
+                    <td>${c.phone || '-'}</td>
+                    <td>${c.email || '-'}</td>
+                    <td><span class="badge badge-info">${custInv.length} inv</span></td>
+                    <td>
+                        <div style="display:flex;gap:4px">
+                            <button class="btn btn-ghost btn-sm" title="Edit" onclick="openForm('${c.id}')">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </button>
+                            <button class="btn btn-ghost btn-sm" title="Delete" onclick="delCustomer('${c.id}')" style="color:var(--error)">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function delCustomer(id) {
+            if (!confirm('Delete this customer? This cannot be undone.')) return;
+            await DB.deleteCustomer(id);
+            toast('Customer deleted', 'warning');
+            renderList();
+        }
+
+        // Initialize: load data then render
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('customers.html');
+            initSidebarUser();
+            renderList();
+        });
+    </script>
+</body>
+</html>

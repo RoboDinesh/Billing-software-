@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Material Management — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header">
+                <div>
+                    <div class="page-title">Material Management</div>
+                    <div class="page-subtitle">Track material purchases and stock</div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openCreate()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Material
+                    </button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Material List</span></div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Material Name</th>
+                                    <th>Supplier</th>
+                                    <th>Qty</th>
+                                    <th>Rate</th>
+                                    <th>GST %</th>
+                                    <th>Total</th>
+                                    <th>Bill</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="m-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE/EDIT MODAL -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal modal-md">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Add Material</span>
+                <button class="modal-close" onclick="closeModal('create-modal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+                    <div class="form-group"><label>Supplier Name</label><input type="text" id="f-supplier" placeholder="Supplier name"></div>
+                </div>
+                <div class="form-group"><label>Material Name</label><input type="text" id="f-name" placeholder="Material name"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Quantity</label><input type="number" id="f-qty" step="any" oninput="recalc()"></div>
+                    <div class="form-group"><label>Rate (₹)</label><input type="number" id="f-rate" step="any" oninput="recalc()"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>GST Rate (%)</label>
+                        <select id="f-gst" onchange="recalc()">
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18" selected>18%</option>
+                            <option value="28">28%</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Total Amount</label><input type="text" id="f-total" readonly style="background:#f9fafb"></div>
+                </div>
+                <div class="form-group">
+                    <label>Upload Bill (Image/PDF)</label>
+                    <input type="file" id="f-bill" accept="image/*,application/pdf" onchange="handleFileUpload(this)">
+                    <input type="hidden" id="f-bill-url">
+                    <div id="bill-preview" style="margin-top:8px"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('create-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveMaterial()">Save Material</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=2.2"></script>
+    <script>
+        Auth.require();
+
+        function openCreate(editId = null) {
+            const m = editId ? DB.getMaterials().find(x => x.id === editId) : null;
+            document.getElementById('edit-id').value = editId || '';
+            document.getElementById('modal-title').textContent = editId ? 'Edit Material' : 'Add Material';
+            document.getElementById('f-date').value = m ? m.date : today();
+            document.getElementById('f-supplier').value = m ? m.supplier : '';
+            document.getElementById('f-name').value = m ? m.name : '';
+            document.getElementById('f-qty').value = m ? m.quantity : '';
+            document.getElementById('f-rate').value = m ? m.rate : '';
+            document.getElementById('f-gst').value = m ? m.gstRate : 18;
+            document.getElementById('f-bill-url').value = m ? (m.billUrl || '') : '';
+            document.getElementById('bill-preview').innerHTML = m && m.billUrl ? `<a href="${m.billUrl}" target="_blank" class="badge badge-info">View Uploaded Bill</a>` : '';
+            
+            recalc();
+            openModal('create-modal');
+        }
+
+        function recalc() {
+            const qty = +document.getElementById('f-qty').value || 0;
+            const rate = +document.getElementById('f-rate').value || 0;
+            const gst = +document.getElementById('f-gst').value || 0;
+            const subtotal = qty * rate;
+            const gstAmt = subtotal * (gst / 100);
+            document.getElementById('f-total').value = fmtCur(subtotal + gstAmt);
+        }
+
+        async function handleFileUpload(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('f-bill-url').value = e.target.result;
+                document.getElementById('bill-preview').innerHTML = `<span class="badge badge-success">File ready to upload</span>`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveMaterial() {
+            const qty = +document.getElementById('f-qty').value || 0;
+            const rate = +document.getElementById('f-rate').value || 0;
+            const gst = +document.getElementById('f-gst').value || 0;
+            const subtotal = qty * rate;
+            const gstAmt = subtotal * (gst / 100);
+            
+            const data = {
+                date: document.getElementById('f-date').value,
+                supplier: document.getElementById('f-supplier').value,
+                name: document.getElementById('f-name').value,
+                quantity: qty,
+                rate: rate,
+                gstRate: gst,
+                cgst: gstAmt / 2,
+                sgst: gstAmt / 2,
+                totalAmount: subtotal + gstAmt,
+                billUrl: document.getElementById('f-bill-url').value
+            };
+
+            const editId = document.getElementById('edit-id').value;
+            if (editId) {
+                await DB.updateMaterial(editId, data);
+                toast('Material updated');
+            } else {
+                await DB.addMaterial(data);
+                toast('Material added');
+            }
+            closeModal('create-modal');
+            renderList();
+        }
+
+        function renderList() {
+            const list = DB.getMaterials();
+            const tbody = document.getElementById('m-tbody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><h3>No materials recorded</h3><p>Start by adding your first material purchase.</p></div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(m => `
+                <tr>
+                    <td>${fmtDate(m.date)}</td>
+                    <td><strong>${m.name}</strong></td>
+                    <td>${m.supplier || '-'}</td>
+                    <td>${m.quantity}</td>
+                    <td>${fmtCur(m.rate)}</td>
+                    <td>${m.gstRate}%</td>
+                    <td><strong>${fmtCur(m.totalAmount)}</strong></td>
+                    <td>${m.billUrl ? `<a href="${m.billUrl}" target="_blank" class="btn btn-ghost btn-sm"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></a>` : '-'}</td>
+                    <td>
+                        <div style="display:flex;gap:4px">
+                            <button class="btn btn-ghost btn-sm" onclick="openCreate('${m.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                            <button class="btn btn-ghost btn-sm" onclick="deleteMaterial('${m.id}')" style="color:var(--error)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function deleteMaterial(id) {
+            if (!confirm('Are you sure you want to delete this material record?')) return;
+            await DB.fetchAPI('delete', { table: 'materials', id });
+            // Update cache
+            DB.cache.materials = DB.cache.materials.filter(x => x.id !== id);
+            renderList();
+            toast('Material deleted', 'warning');
+        }
+
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('material.html');
+            initSidebarUser();
+            renderList();
+        });
+    </script>
+</body>
+
+</html>

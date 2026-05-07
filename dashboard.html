@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Dashboard — Veranjaneya Billing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Dashboard</div>
+                    <div class="page-subtitle" id="greeting-text"></div>
+                </div>
+                <div class="header-actions">
+                    <div id="conn-health" style="display:flex;align-items:center;gap:6px;font-size:11px;background:rgba(0,0,0,0.03);padding:4px 10px;border-radius:20px;font-weight:600">
+                        <span id="health-dot" style="width:8px;height:8px;border-radius:50%;background:#ccc"></span>
+                        <span id="health-text">Checking...</span>
+                    </div>
+                    <span id="fy-badge" style="font-size:11px;background:var(--accent-light);color:var(--accent);padding:4px 10px;border-radius:20px;font-weight:600"></span>
+                    <a href="invoice.html" class="btn btn-primary">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        New Invoice
+                    </a>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <!-- Stats -->
+                <div class="stats-grid" id="stats-grid"></div>
+
+                <!-- Charts Row -->
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Recent Invoices</span>
+                            <a href="invoice.html" class="btn btn-outline btn-sm">View All</a>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Invoice No</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-invoices"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Pending Payments</span></div>
+                        <div id="pending-list" style="padding:12px"></div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Quick Actions</span></div>
+                        <div class="card-body" style="display:grid;gap:8px">
+                            <a href="invoice.html" class="btn btn-primary"><svg fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>Create Invoice</a>
+                            <a href="quotation.html" class="btn btn-secondary"><svg fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                </svg>Create Quotation</a>
+                            <a href="challan.html" class="btn btn-info"><svg fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>Delivery Challan</a>
+                            <a href="customers.html" class="btn btn-outline"><svg fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>Add Customer</a>
+                            <a href="products.html" class="btn btn-outline"><svg fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>Add Product</a>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Recent Quotations</span></div>
+                        <div id="recent-quotations" style="padding:12px"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Top Customers</span></div>
+                        <div id="top-customers" style="padding:12px"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        (async () => {
+            const user = Auth.require();
+            await DB.init();
+
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('dashboard.html');
+            initSidebarUser();
+
+            const mode = DB.getMode();
+            const dot = document.getElementById('health-dot');
+            const txt = document.getElementById('health-text');
+            if (mode === 'api') {
+                dot.style.background = '#10b981'; txt.textContent = 'Live (Hostinger)';
+            } else {
+                dot.style.background = '#f59e0b'; txt.textContent = 'Local Mode';
+                txt.title = 'Database connection failed. Working in offline mode.';
+            }
+
+            const hour = new Date().getHours();
+            const greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+            document.getElementById('greeting-text').textContent = `${greet}, ${user ? user.name : 'User'}!`;
+            document.getElementById('fy-badge').textContent = 'FY ' + getFY();
+
+            const invoices = DB.getInvoices();
+            const customers = DB.getCustomers();
+            const quotations = DB.getQuotations();
+            const products = DB.getProducts();
+
+            const totalRevenue = invoices.reduce((s, i) => s + (i.grandTotal || 0), 0);
+            const paid = invoices.filter(i => i.paymentStatus === 'paid').reduce((s, i) => s + (i.grandTotal || 0), 0);
+            const pending = invoices.filter(i => i.paymentStatus !== 'paid').reduce((s, i) => s + (i.grandTotal || 0), 0);
+            const pendingCount = invoices.filter(i => i.paymentStatus !== 'paid').length;
+
+            document.getElementById('stats-grid').innerHTML = `
+                <div class="stat-card"><div class="stat-icon orange"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg></div><div><div class="stat-value">${fmtCur(totalRevenue)}</div><div class="stat-label">Total Revenue (FY)</div></div></div>
+                <div class="stat-card"><div class="stat-icon green"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div><div><div class="stat-value">${fmtCur(paid)}</div><div class="stat-label">Amount Collected</div></div></div>
+                <div class="stat-card"><div class="stat-icon red"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div><div class="stat-value">${fmtCur(pending)}</div><div class="stat-label">Pending (${pendingCount} invoices)</div></div></div>
+                <div class="stat-card"><div class="stat-icon blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div><div><div class="stat-value">${customers.length}</div><div class="stat-label">Total Customers</div></div></div>
+                <div class="stat-card"><div class="stat-icon yellow"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div><div class="stat-value">${invoices.length}</div><div class="stat-label">Total Invoices</div></div></div>
+                <div class="stat-card"><div class="stat-icon orange"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div><div><div class="stat-value">${products.length}</div><div class="stat-label">Products</div></div></div>
+            `;
+
+            // Recent invoices
+            const recent = invoices.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8);
+            document.getElementById('recent-invoices').innerHTML = recent.length === 0
+                ? `<tr><td colspan="5"><div class="empty-state" style="padding:24px"><h3>No invoices yet</h3></div></td></tr>`
+                : recent.map(inv => {
+                    const badge = inv.paymentStatus === 'paid' ? 'badge-success' : inv.paymentStatus === 'partial' ? 'badge-warning' : 'badge-error';
+                    return `<tr><td><strong style="color:var(--accent)">${inv.invoiceNo}</strong></td><td>${inv.customerName||'-'}</td><td>${fmtDate(inv.date)}</td><td><strong>${fmtCur(inv.grandTotal)}</strong></td><td><span class="badge ${badge}">${(inv.paymentStatus||'pending').charAt(0).toUpperCase()+(inv.paymentStatus||'pending').slice(1)}</span></td></tr>`;
+                }).join('');
+
+            // Pending payments list
+            const pendingInvs = invoices.filter(i => i.paymentStatus !== 'paid').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
+            document.getElementById('pending-list').innerHTML = pendingInvs.length === 0
+                ? `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">🎉 All invoices paid!</div>`
+                : pendingInvs.map(inv => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+                        <div><div style="font-weight:600;font-size:12px">${inv.invoiceNo}</div><div style="color:var(--text-muted);font-size:11px">${inv.customerName||'-'}</div></div>
+                        <strong style="color:var(--error)">${fmtCur(inv.grandTotal)}</strong>
+                    </div>`).join('');
+
+            // Recent quotations
+            const recentQ = quotations.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4);
+            document.getElementById('recent-quotations').innerHTML = recentQ.length === 0
+                ? `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">No quotations yet</div>`
+                : recentQ.map(q => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+                        <div><div style="font-weight:600;font-size:12px">${q.quotationNo}</div><div style="color:var(--text-muted);font-size:11px">${q.customerName||'-'}</div></div>
+                        <strong>${fmtCur(q.grandTotal)}</strong>
+                    </div>`).join('');
+
+            // Top customers by invoice total
+            const custTotals = {};
+            invoices.forEach(inv => {
+                if (!inv.customerId) return;
+                if (!custTotals[inv.customerId]) custTotals[inv.customerId] = { name: inv.customerName, total: 0 };
+                custTotals[inv.customerId].total += inv.grandTotal || 0;
+            });
+            const topCusts = Object.values(custTotals).sort((a, b) => b.total - a.total).slice(0, 5);
+            document.getElementById('top-customers').innerHTML = topCusts.length === 0
+                ? `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">No data yet</div>`
+                : topCusts.map(c => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+                        <div style="font-weight:600;font-size:12px">${c.name}</div>
+                        <strong style="color:var(--accent)">${fmtCur(c.total)}</strong>
+                    </div>`).join('');
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Invoices — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Invoices</div>
+                    <div class="page-subtitle">GST Tax Invoices with CGST/SGST/IGST</div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-bar">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search invoices..." oninput="renderList()">
+                    </div>
+                    <select id="filter-status" onchange="renderList()" style="width:auto">
+                        <option value="">All Status</option>
+                        <option value="paid">Paid</option>
+                        <option value="pending">Pending</option>
+                        <option value="partial">Partial</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="openCreateModal()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        New Invoice
+                    </button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">All Invoices</span>
+                        <span id="invoice-count" style="font-size:12px;color:var(--text-muted)"></span>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Invoice No</th>
+                                    <th>Customer</th>
+                                    <th>Date</th>
+                                    <th>Due Date</th>
+                                    <th>Taxable</th>
+                                    <th>GST</th>
+                                    <th>Grand Total</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE / EDIT INVOICE MODAL -->
+    <div class="modal-overlay modal-xl" id="create-modal">
+        <div class="modal modal-xl">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Create Invoice</span>
+                <button class="modal-close" onclick="closeModal('create-modal')"><svg fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label>Invoice No</label><input type="text" id="f-invno" readonly
+                            style="background:#f9fafb"></div>
+                    <div class="form-group"><label class="required">Date</label><input type="date" id="f-date" required>
+                    </div>
+                    <div class="form-group"><label>Due Date</label><input type="date" id="f-duedate"></div>
+                    <div class="form-group"><label>Payment Status</label>
+                        <select id="f-status">
+                            <option value="pending">Pending</option>
+                            <option value="partial">Partial</option>
+                            <option value="paid">Paid</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Customer Section -->
+                <div
+                    style="background:#f9fafb;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">
+                        Bill To</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Customer</label>
+                            <select id="f-customer" onchange="onCustomerChange()">
+                                <option value="">Select Customer</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label>GSTIN</label><input type="text" id="f-cust-gstin"
+                                placeholder="Customer GSTIN"></div>
+                        <div class="form-group"><label>State</label>
+                            <select id="f-cust-state" onchange="onStateChange()">
+                                <option value="">Select State</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Address</label><input type="text" id="f-cust-addr"
+                            placeholder="Customer address"></div>
+                    <div id="gst-type-badge" style="margin-top:6px"></div>
+                </div>
+
+                <!-- Items Section -->
+                <div
+                    style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">
+                    Items</div>
+                <div class="items-section">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th style="width:30px">#</th>
+                                <th>Product / Description</th>
+                                <th style="width:80px">HSN</th>
+                                <th style="width:60px">Qty</th>
+                                <th style="width:60px">Unit</th>
+                                <th style="width:90px">Rate (₹)</th>
+                                <th style="width:70px">Disc %</th>
+                                <th style="width:60px">GST %</th>
+                                <th style="width:95px">Taxable</th>
+                                <th style="width:85px">GST Amt</th>
+                                <th style="width:95px">Total</th>
+                                <th style="width:36px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody"></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="addItem()" style="margin-bottom:14px">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Item
+                </button>
+
+                <!-- GST Summary -->
+                <div class="gst-summary">
+                    <div class="gst-row"><span>Subtotal (Taxable Value)</span><span id="sum-taxable">₹0.00</span></div>
+                    <div class="gst-row" id="cgst-row"><span>CGST</span><span id="sum-cgst">₹0.00</span></div>
+                    <div class="gst-row" id="sgst-row"><span>SGST</span><span id="sum-sgst">₹0.00</span></div>
+                    <div class="gst-row" id="igst-row" style="display:none"><span>IGST</span><span
+                            id="sum-igst">₹0.00</span></div>
+                    <div class="gst-row total"><span>Grand Total</span><span id="sum-total">₹0.00</span></div>
+                </div>
+
+                <div class="form-row" style="margin-top:14px">
+                    <div class="form-group"><label>Paid Amount (₹)</label><input type="number" id="f-paid" value="0"
+                            min="0" oninput="recalc()"></div>
+                    <div class="form-group"><label>Notes</label><input type="text" id="f-notes"
+                            placeholder="Additional notes"></div>
+                </div>
+                <div class="form-group"><label>Custom Terms & Conditions (Manual edit)</label><textarea id="f-terms" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('create-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveInvoice()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW INVOICE MODAL -->
+    <div class="modal-overlay modal-xl" id="view-modal">
+        <div class="modal modal-xl">
+            <div class="modal-header no-print">
+                <span class="modal-title">Invoice Preview</span>
+                <div style="display:flex;gap:8px;margin-left:auto;align-items:center;">
+                    <select id="bill-type-select" onchange="updateBillType()" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid var(--border);">
+                        <option value="ORIGINAL FOR RECIPIENT">Original</option>
+                        <option value="DUPLICATE FOR TRANSPORTER">Duplicate</option>
+                        <option value="TRIPLICATE FOR SUPPLIER">Triplicate</option>
+                        <option value="COPY">Copy</option>
+                    </select>
+                    <button class="btn btn-outline btn-sm" id="print-btn" onclick="printInvoice()"><svg fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>Print</button>
+                    <button class="btn btn-primary btn-sm" onclick="downloadPDF()"><svg fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>Download PDF</button>
+                    <button class="modal-close" onclick="closeModal('view-modal')"><svg fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg></button>
+                </div>
+            </div>
+            <div class="modal-body" id="invoice-preview"></div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        Auth.require();
+
+        let currentGSTType = 'intra';
+        let viewingInvoice = null;
+        let items = [];
+
+        function openCreateModal(editId = null) {
+            items = [];
+            document.getElementById('edit-id').value = editId || '';
+            const settings = DB.getSettings();
+            const inv = editId ? DB.getInvoice(editId) : null;
+            document.getElementById('modal-title').textContent = editId ? 'Edit Invoice' : 'Create Invoice';
+            document.getElementById('f-invno').value = inv ? inv.invoiceNo : DB.nextInvoiceNo();
+            document.getElementById('f-date').value = inv ? inv.date : today();
+            document.getElementById('f-duedate').value = inv ? inv.duedate : addDays(30);
+            document.getElementById('f-status').value = inv ? inv.paymentStatus : 'pending';
+            document.getElementById('f-notes').value = inv ? (inv.notes || '') : '';
+            document.getElementById('f-terms').value = inv ? (inv.termsConditions || settings.termsConditions) : settings.termsConditions;
+            document.getElementById('f-paid').value = inv ? (inv.paidAmount || 0) : 0;
+
+            // Populate customer dropdown
+            const custSel = document.getElementById('f-customer');
+            custSel.innerHTML = '<option value="">Select Customer</option>' +
+                DB.getCustomers().map(c => `<option value="${c.id}" ${inv && inv.customerId === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+
+            // State dropdown
+            document.getElementById('f-cust-state').innerHTML = '<option value="">Select State</option>' + stateOptions();
+
+            if (inv) {
+                document.getElementById('f-cust-gstin').value = inv.customerGSTIN || '';
+                document.getElementById('f-cust-addr').value = inv.customerAddress || '';
+                document.getElementById('f-cust-state').value = inv.customerStateCode || '';
+                items = inv.items ? JSON.parse(JSON.stringify(inv.items)) : [];
+                currentGSTType = inv.gstType || 'intra';
+            } else {
+                document.getElementById('f-cust-gstin').value = '';
+                document.getElementById('f-cust-addr').value = '';
+                document.getElementById('f-cust-state').innerHTML = '<option value="">Select State</option>' + stateOptions();
+                items = [];
+                currentGSTType = 'intra';
+            }
+
+            if (items.length === 0) addItem();
+            renderItems();
+            recalc();
+            openModal('create-modal');
+        }
+
+        function onCustomerChange() {
+            const cid = document.getElementById('f-customer').value;
+            if (!cid) return;
+            const c = DB.getCustomer(cid);
+            if (!c) return;
+            document.getElementById('f-cust-gstin').value = c.gstin || '';
+            document.getElementById('f-cust-addr').value = [c.address, c.city, c.state].filter(Boolean).join(', ');
+            document.getElementById('f-cust-state').value = c.stateCode || '';
+            onStateChange();
+        }
+
+        function onStateChange() {
+            const settings = DB.getSettings();
+            const buyerCode = document.getElementById('f-cust-state').value;
+            currentGSTType = gstType(settings.stateCode, buyerCode);
+            const badge = document.getElementById('gst-type-badge');
+            badge.innerHTML = currentGSTType === 'inter'
+                ? `<span class="badge badge-info">IGST (Inter-State Supply)</span>`
+                : `<span class="badge badge-success">CGST + SGST (Intra-State Supply)</span>`;
+            recalc();
+        }
+
+        function addItem() {
+            items.push({ name: '', hsnCode: '', qty: 1, unit: 'Nos', rate: 0, discount: 0, gstRate: 18 });
+            renderItems();
+        }
+
+        function removeItem(idx) {
+            items.splice(idx, 1);
+            renderItems();
+            recalc();
+        }
+
+        function renderItems() {
+            const products = DB.getProducts();
+            const tbody = document.getElementById('items-tbody');
+            tbody.innerHTML = items.map((it, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>
+        <select onchange="onProductSelect(${idx},this)" style="width:100%;min-width:160px">
+          <option value="">-- Select or type --</option>
+          ${products.map(p => `<option value="${p.id}" ${it.productId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+        <input type="text" placeholder="Description" value="${it.name || ''}" oninput="updateItem(${idx},'name',this.value)" style="margin-top:2px">
+      </td>
+      <td><input type="text" value="${it.hsnCode || ''}" oninput="updateItem(${idx},'hsnCode',this.value)" style="width:70px"></td>
+      <td><input type="number" value="${it.qty || 1}" min="0.001" step="any" oninput="updateItem(${idx},'qty',+this.value)" style="width:55px"></td>
+      <td>
+        <select onchange="updateItem(${idx},'unit',this.value)" style="width:55px">
+          ${['Nos', 'Kg', 'Mtr', 'Set', 'Pcs', 'Ltr', 'Box', 'Pair'].map(u => `<option ${it.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="number" value="${it.rate || 0}" min="0" step="any" oninput="updateItem(${idx},'rate',+this.value)" style="width:80px"></td>
+      <td><input type="number" value="${it.discount || 0}" min="0" max="100" step="any" oninput="updateItem(${idx},'discount',+this.value)" style="width:55px"></td>
+      <td>
+        <select onchange="updateItem(${idx},'gstRate',+this.value)" style="width:55px">
+          ${[0, 5, 12, 18, 28].map(r => `<option value="${r}" ${it.gstRate === r ? 'selected' : ''}>${r}%</option>`).join('')}
+        </select>
+      </td>
+      <td style="text-align:right;font-weight:500" id="taxable-${idx}">${fmtCur(getItemTaxable(it))}</td>
+      <td style="text-align:right" id="gstamt-${idx}">${fmtCur(getItemGST(it))}</td>
+      <td style="text-align:right;font-weight:700;color:var(--accent)" id="total-${idx}">${fmtCur(getItemTotal(it))}</td>
+      <td><button onclick="removeItem(${idx})" class="btn btn-ghost btn-sm" style="color:var(--error);padding:4px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></td>
+    </tr>`
+            ).join('');
+        }
+
+        function onProductSelect(idx, sel) {
+            const pid = sel.value;
+            if (!pid) return;
+            const p = DB.getProduct(pid);
+            if (!p) return;
+            items[idx] = { ...items[idx], productId: p.id, name: p.name, hsnCode: p.hsnCode || '', unit: p.unit || 'Nos', rate: p.rate || 0, gstRate: p.gstRate || 18 };
+            renderItems(); recalc();
+        }
+
+        function updateItem(idx, field, val) {
+            items[idx][field] = val;
+            const it = items[idx];
+            const tEl = document.getElementById(`taxable-${idx}`);
+            const gEl = document.getElementById(`gstamt-${idx}`);
+            const ttEl = document.getElementById(`total-${idx}`);
+            if (tEl) tEl.textContent = fmtCur(getItemTaxable(it));
+            if (gEl) gEl.textContent = fmtCur(getItemGST(it));
+            if (ttEl) ttEl.textContent = fmtCur(getItemTotal(it));
+            recalc();
+        }
+
+        function getItemTaxable(it) {
+            const base = (it.qty || 0) * (it.rate || 0);
+            return base * (1 - (it.discount || 0) / 100);
+        }
+        function getItemGST(it) { return (getItemTaxable(it) * (it.gstRate || 0)) / 100; }
+        function getItemTotal(it) { return getItemTaxable(it) + getItemGST(it); }
+
+        function recalc() {
+            let subtotal = 0, totalCGST = 0, totalSGST = 0, totalIGST = 0;
+            items.forEach(it => {
+                const taxable = getItemTaxable(it);
+                const g = calcGST(taxable, it.gstRate || 0, currentGSTType);
+                subtotal += taxable;
+                totalCGST += g.cgst; totalSGST += g.sgst; totalIGST += g.igst;
+            });
+            const grandTotal = subtotal + totalCGST + totalSGST + totalIGST;
+
+            document.getElementById('sum-taxable').textContent = fmtCur(subtotal);
+            document.getElementById('sum-cgst').textContent = fmtCur(totalCGST);
+            document.getElementById('sum-sgst').textContent = fmtCur(totalSGST);
+            document.getElementById('sum-igst').textContent = fmtCur(totalIGST);
+            document.getElementById('sum-total').textContent = fmtCur(grandTotal);
+
+            const isInter = currentGSTType === 'inter';
+            document.getElementById('cgst-row').style.display = isInter ? 'none' : '';
+            document.getElementById('sgst-row').style.display = isInter ? 'none' : '';
+            document.getElementById('igst-row').style.display = isInter ? '' : 'none';
+        }
+
+        async function saveInvoice() {
+            const custId = document.getElementById('f-customer').value;
+            if (!custId) { toast('Please select a customer', 'error'); return; }
+            if (items.length === 0 || items.every(i => !i.name && !i.rate)) { toast('Add at least one item', 'error'); return; }
+
+            const settings = DB.getSettings();
+            const buyerCode = document.getElementById('f-cust-state').value;
+            const gt = gstType(settings.stateCode, buyerCode);
+            const cust = DB.getCustomer(custId);
+
+            let subtotal = 0, totalCGST = 0, totalSGST = 0, totalIGST = 0;
+            const processedItems = items.map(it => {
+                const taxable = getItemTaxable(it);
+                const g = calcGST(taxable, it.gstRate || 0, gt);
+                subtotal += taxable; totalCGST += g.cgst; totalSGST += g.sgst; totalIGST += g.igst;
+                return { ...it, taxableAmount: taxable, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total: taxable + g.total };
+            });
+            const grandTotal = subtotal + totalCGST + totalSGST + totalIGST;
+
+            const data = {
+                invoiceNo: document.getElementById('f-invno').value,
+                date: document.getElementById('f-date').value,
+                duedate: document.getElementById('f-duedate').value,
+                paymentStatus: document.getElementById('f-status').value,
+                paidAmount: parseFloat(document.getElementById('f-paid').value) || 0,
+                customerId: custId, customerName: cust ? cust.name : '',
+                customerGSTIN: document.getElementById('f-cust-gstin').value,
+                customerAddress: document.getElementById('f-cust-addr').value,
+                customerStateCode: buyerCode,
+                items: processedItems, gstType: gt,
+                subtotal, totalCGST, totalSGST, totalIGST,
+                totalGST: totalCGST + totalSGST + totalIGST, grandTotal,
+                notes: document.getElementById('f-notes').value,
+                termsConditions: document.getElementById('f-terms').value
+            };
+
+            const editId = document.getElementById('edit-id').value;
+            if (editId) { await DB.updateInvoice(editId, data); toast('Invoice updated!'); }
+            else { await DB.addInvoice(data); toast('Invoice created!'); }
+            closeModal('create-modal');
+            renderList();
+        }
+
+        function renderList() {
+            const search = (document.getElementById('search-input').value || '').toLowerCase();
+            const status = document.getElementById('filter-status').value;
+            let list = DB.getInvoices().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            if (search) list = list.filter(i => (i.invoiceNo || '').toLowerCase().includes(search) || (i.customerName || '').toLowerCase().includes(search));
+            if (status) list = list.filter(i => i.paymentStatus === status);
+
+            document.getElementById('invoice-count').textContent = `${list.length} invoice${list.length !== 1 ? 's' : ''}`;
+            const tbody = document.getElementById('invoice-tbody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><h3>No invoices yet</h3><p>Create your first GST invoice</p><button class="btn btn-primary" onclick="openCreateModal()">Create Invoice</button></div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(inv => {
+                const badge = inv.paymentStatus === 'paid' ? 'badge-success' : inv.paymentStatus === 'partial' ? 'badge-warning' : 'badge-error';
+                const label = inv.paymentStatus === 'paid' ? 'Paid' : inv.paymentStatus === 'partial' ? 'Partial' : 'Pending';
+                return `<tr>
+      <td><strong style="color:var(--accent)">${inv.invoiceNo}</strong></td>
+      <td>${inv.customerName || '-'}</td>
+      <td>${fmtDate(inv.date)}</td>
+      <td>${fmtDate(inv.duedate || inv.date)}</td>
+      <td>${fmtCur(inv.subtotal)}</td>
+      <td>${fmtCur(inv.totalGST || (inv.grandTotal - inv.subtotal))}</td>
+      <td><strong>${fmtCur(inv.grandTotal)}</strong></td>
+      <td><span class="badge ${badge}">${label}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" title="View" onclick="viewInvoice('${inv.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" title="Edit" onclick="openCreateModal('${inv.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" title="Delete" onclick="deleteInvoice('${inv.id}')" style="color:var(--error)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+        </div>
+      </td>
+    </tr>`;
+            }).join('');
+        }
+
+        function deleteInvoice(id) {
+            if (!confirm('Delete this invoice?')) return;
+            DB.deleteInvoice(id); toast('Invoice deleted', 'warning'); renderList();
+        }
+
+        function updateBillType() {
+            const label = document.getElementById('bill-type-label');
+            const sel = document.getElementById('bill-type-select');
+            if (label && sel) label.textContent = sel.value;
+        }
+
+        function viewInvoice(id) {
+            viewingInvoice = DB.getInvoice(id);
+            if (!viewingInvoice) return;
+            document.getElementById('invoice-preview').innerHTML = buildInvoiceHTML(viewingInvoice);
+            openModal('view-modal');
+            updateBillType();
+        }
+
+        function buildInvoiceHTML(inv) {
+            try {
+                const s = DB.getSettings();
+            const isInter = inv.gstType === 'inter';
+            const rows = (inv.items || []).map((it, i) => `
+    <tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${it.name || ''}</td>
+      <td style="text-align:center">${it.hsnCode || '-'}</td>
+      <td style="text-align:center">${it.qty} ${it.unit || ''}</td>
+      <td style="text-align:right">${fmtCur(it.rate)}</td>
+      <td style="text-align:center">${it.discount || 0}%</td>
+      <td style="text-align:right">${fmtCur(it.taxableAmount || it.taxable)}</td>
+      <td style="text-align:center">${it.gstRate}%</td>
+      ${isInter ? `<td style="text-align:right">${fmtCur(it.igst)}</td>` : `<td style="text-align:right">${fmtCur(it.cgst)}</td><td style="text-align:right">${fmtCur(it.sgst)}</td>`}
+      <td style="text-align:right;font-weight:700">${fmtCur(it.total)}</td>
+    </tr>`).join('');
+
+            const gstCols = isInter
+                ? `<th>IGST</th>`
+                : `<th>CGST</th><th>SGST</th>`;
+            const billType = document.getElementById('bill-type-select').value;
+
+            const badge = inv.paymentStatus === 'paid' ? 'color:#10b981;background:#d1fae5' : inv.paymentStatus === 'partial' ? 'color:#f59e0b;background:#fef3c7' : 'color:#ef4444;background:#fee2e2';
+
+            return `<div id="inv-print-content" style="font-family:'Inter',sans-serif;max-width:820px;margin:0 auto;padding:5px">
+    <div id="bill-type-label" style="text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:8px;color:var(--text-muted);text-transform:uppercase">${billType}</div>
+                    <!-- Header Section -->
+                    <div class="inv-print-header" style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                        ${s.showLogo && s.logo ? `<img src="${s.logo}" style="max-height:65px; max-width:250px; margin-bottom:12px;">` : ''}
+                        <div class="inv-company-name" style="font-size:24px; font-weight:800; color:var(--text); margin-bottom:4px;">${s.name}</div>
+                        <div class="inv-company-details" style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+                            ${s.address ? s.address + '<br>' : ''}
+                            ${s.city ? s.city + ', ' : ''} ${s.state || ''}
+                            ${s.gstin ? ' | GSTIN: ' + s.gstin : ''}
+                            ${s.phone ? ' | Ph: ' + s.phone : ''}
+                        </div>
+                        <div class="inv-title" style="margin-top:15px; font-size:22px; font-weight:900; color:var(--accent); letter-spacing:2px; border-top:2px solid var(--accent); border-bottom:2px solid var(--accent); padding:4px 30px; display:inline-block; text-transform:uppercase;">TAX INVOICE</div>
+                    </div>
+
+    <!-- Parties -->
+    <!-- Parties & Info -->
+    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+        <div style="flex:1;">
+            <div class="inv-party-label">Bill To</div>
+            <div class="inv-party-name" style="font-size:16px;">${inv.customerName || '-'}</div>
+            <div class="inv-party-details">
+                ${inv.customerAddress || ''}<br>
+                ${inv.customerGSTIN ? '<strong>GSTIN:</strong> ' + inv.customerGSTIN : ''}
+            </div>
+        </div>
+        <div style="flex:1; text-align:right;">
+            <div style="display:inline-block; text-align:left;">
+                <div style="font-size:12px; margin-bottom:4px;"><strong>Invoice No:</strong> ${inv.invoiceNo}</div>
+                <div style="font-size:12px; margin-bottom:4px;"><strong>Date:</strong> ${fmtDate(inv.date)}</div>
+                <div style="font-size:12px; margin-bottom:4px;"><strong>Due Date:</strong> ${fmtDate(inv.duedate || inv.date)}</div>
+                <div style="margin-top:8px;"><span style="padding:4px 12px; border-radius:15px; font-size:10px; font-weight:800; ${badge}">${(inv.paymentStatus || 'pending').toUpperCase()}</span></div>
+                <div style="margin-top:8px; font-size:11px; font-weight:700; color:${isInter ? '#3b82f6' : '#10b981'}">${isInter ? 'IGST (Inter-State)' : 'CGST+SGST (Intra-State)'}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="inv-items-table">
+      <thead><tr>
+        <th style="text-align:center;width:30px">#</th>
+        <th>Description</th>
+        <th>HSN</th>
+        <th style="text-align:center">Qty</th>
+        <th style="text-align:right">Rate</th>
+        <th style="text-align:center">Disc</th>
+        <th style="text-align:right">Taxable</th>
+        <th style="text-align:center">GST%</th>
+        ${gstCols}
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="inv-total-section">
+      <div class="inv-total-table">
+        <div class="inv-total-row"><span>Subtotal</span><span>${fmtCur(inv.subtotal)}</span></div>
+        ${isInter ? `<div class="inv-total-row"><span>IGST</span><span>${fmtCur(inv.totalIGST)}</span></div>`
+                    : `<div class="inv-total-row"><span>CGST</span><span>${fmtCur(inv.totalCGST)}</span></div><div class="inv-total-row"><span>SGST</span><span>${fmtCur(inv.totalSGST)}</span></div>`}
+        ${inv.paidAmount > 0 ? `<div class="inv-total-row"><span>Paid Amount</span><span style="color:var(--success)">${fmtCur(inv.paidAmount)}</span></div>` : ''}
+        <div class="inv-total-grand"><span>Grand Total</span><span>${fmtCur(inv.grandTotal)}</span></div>
+        ${inv.paidAmount > 0 ? `<div class="inv-total-row" style="font-weight:700;color:var(--error)"><span>Balance Due</span><span>${fmtCur(inv.grandTotal - (inv.paidAmount || 0))}</span></div>` : ''}
+      </div>
+    </div>
+
+    <!-- Amount in words -->
+    <div class="inv-amount-words">Amount in words: <strong>${numWords(inv.grandTotal)}</strong></div>
+
+    <!-- Footer Section -->
+    <div class="inv-footer" style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:30px;">
+      <div style="flex:1.5;">
+        ${s.showBank && s.bankName ? `<div class="inv-bank-details" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+          <div style="font-size:11px; font-weight:800; margin-bottom:8px; color:var(--accent);">BANK ACCOUNT DETAILS</div>
+          <table style="width:100%; border:none; font-size:10px;">
+            <tr><td style="color:var(--text-muted); width:80px; padding:2px 0;">Bank Name:</td><td style="font-weight:700;">${s.bankName}</td></tr>
+            <tr><td style="color:var(--text-muted); padding:2px 0;">Account No:</td><td style="font-weight:700;">${s.bankAccount}</td></tr>
+            <tr><td style="color:var(--text-muted); padding:2px 0;">IFSC Code:</td><td style="font-weight:700;">${s.bankIFSC}</td></tr>
+            ${s.reptid ? `<tr><td style="color:var(--text-muted); padding:2px 0;">REPTID:</td><td style="font-weight:700;">${s.reptid}</td></tr>` : ''}
+          </table>
+        </div>` : ''}
+        ${inv.termsConditions ? `<div style="margin-top:15px; font-size:9px; color:var(--text-muted); line-height:1.4;">
+            <div style="font-weight:800; margin-bottom:4px; color:var(--text);">TERMS & CONDITIONS:</div>
+            ${inv.termsConditions.replace(/\n/g, '<br>')}
+        </div>` : ''}
+      </div>
+      <div style="flex:1; text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+        <div style="margin-bottom:10px;">
+            ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height:55px; margin-bottom:5px;">` : '<div style="height:55px;"></div>'}
+            <div style="font-size:12px; font-weight:800;">For ${s.name}</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Authorized Signatory</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Selection & Generation Text -->
+    <div style="margin-top:40px; padding-top:15px; border-top:1px dashed #ccc; display:flex; justify-content:space-between; align-items:flex-end;">
+        <div class="inv-copy-selector" style="margin:0; border:none; background:none; padding:0; display:flex; gap:15px;">
+            <div class="inv-copy-box"><span class="inv-copy-check ${billType.includes('ORIGINAL') ? 'checked' : ''}"></span> ORIGINAL</div>
+            <div class="inv-copy-box"><span class="inv-copy-check ${billType.includes('DUPLICATE') ? 'checked' : ''}"></span> DUPLICATE</div>
+            <div class="inv-copy-box"><span class="inv-copy-check ${billType.includes('COPY') || billType.includes('TRIPLICATE') ? 'checked' : ''}"></span> COPY</div>
+        </div>
+        <div style="text-align:right;">
+            ${inv.notes ? `<div style="font-size:10px; color:var(--text-muted); margin-bottom:8px;"><strong>Note:</strong> ${inv.notes}</div>` : ''}
+            <div style="font-size:10px; color:var(--text-muted); font-style:italic;">This is a computer generated invoice. No signature is required.</div>
+        </div>
+    </div>
+  </div>`;
+            } catch (e) {
+                console.error('Invoice Render Error:', e);
+                return `<div class="alert alert-error" style="padding:20px; color:red;">Error rendering invoice: ${e.message}</div>`;
+            }
+        }
+
+        function printInvoice() {
+            window.print();
+        }
+
+        function downloadPDF() {
+            if (!viewingInvoice) return;
+            const element = document.getElementById('inv-print-content');
+            const opt = {
+                margin: [5, 5, 5, 5], filename: `${viewingInvoice.invoiceNo}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+            toast('PDF downloaded!');
+        }
+
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('invoice.html');
+            initSidebarUser();
+            renderList();
+        });
+    </script>
+</body>
+
+</html>

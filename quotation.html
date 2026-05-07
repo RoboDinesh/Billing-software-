@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Quotations — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Quotations</div>
+                    <div class="page-subtitle">Create & manage quotations, convert to invoices</div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-bar">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search quotations..." oninput="renderList()">
+                    </div>
+                    <button class="btn btn-primary" onclick="openCreate()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        New Quotation
+                    </button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">All Quotations</span><span id="q-count"
+                            style="font-size:12px;color:var(--text-muted)"></span></div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Quotation No</th>
+                                    <th>Customer</th>
+                                    <th>Date</th>
+                                    <th>Valid Until</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="q-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE/EDIT MODAL -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal modal-xl">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Create Quotation</span>
+                <button class="modal-close" onclick="closeModal('create-modal')"><svg fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label>Quotation No</label><input type="text" id="f-qno" readonly
+                            style="background:#f9fafb"></div>
+                    <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+                    <div class="form-group"><label>Valid Until</label><input type="date" id="f-valid"></div>
+                </div>
+                <div
+                    style="background:#f9fafb;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">
+                        Customer Details</div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Customer</label>
+                            <select id="f-customer" onchange="onCustChange()">
+                                <option value="">Select Customer</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label>GSTIN</label><input type="text" id="f-cgstin"
+                                placeholder="Customer GSTIN"></div>
+                        <div class="form-group"><label>State</label>
+                            <select id="f-cstate" onchange="onStateChange()">
+                                <option value="">Select State</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Address</label><input type="text" id="f-caddr" placeholder="Address">
+                    </div>
+                    <div id="gst-badge" style="margin-top:5px"></div>
+                </div>
+
+                <div
+                    style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">
+                    Items</div>
+                <div class="items-section">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product / Description</th>
+                                <th>HSN</th>
+                                <th>Qty</th>
+                                <th>Unit</th>
+                                <th>Rate (₹)</th>
+                                <th>Disc%</th>
+                                <th>GST%</th>
+                                <th>Taxable</th>
+                                <th>GST</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody"></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="addItem()" style="margin-bottom:14px">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>Add Item
+                </button>
+                <div class="gst-summary">
+                    <div class="gst-row"><span>Subtotal</span><span id="s-subtotal">₹0.00</span></div>
+                    <div class="gst-row" id="r-cgst"><span>CGST</span><span id="s-cgst">₹0.00</span></div>
+                    <div class="gst-row" id="r-sgst"><span>SGST</span><span id="s-sgst">₹0.00</span></div>
+                    <div class="gst-row" id="r-igst" style="display:none"><span>IGST</span><span
+                            id="s-igst">₹0.00</span></div>
+                    <div class="gst-row total"><span>Total</span><span id="s-total">₹0.00</span></div>
+                </div>
+                <div class="form-group" style="margin-top:14px"><label>Terms & Conditions</label><textarea id="f-terms"
+                        rows="3"></textarea></div>
+                <div class="form-group"><label>Notes</label><input type="text" id="f-notes"
+                        placeholder="Additional notes"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('create-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveQuotation()">Save Quotation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW MODAL -->
+    <div class="modal-overlay" id="view-modal">
+        <div class="modal modal-xl">
+            <div class="modal-header no-print">
+                <span class="modal-title">Quotation Preview</span>
+                <div style="display:flex;gap:8px;margin-left:auto">
+                    <button class="btn btn-outline btn-sm" onclick="convertToInvoice()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Convert to Invoice
+                    </button>
+                    <button class="btn btn-whatsapp btn-sm" onclick="shareWhatsApp()">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                            <path
+                                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                        </svg>
+                        WhatsApp
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="downloadQPDF()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>PDF
+                    </button>
+                    <button class="modal-close" onclick="closeModal('view-modal')"><svg fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg></button>
+                </div>
+            </div>
+            <div class="modal-body" id="q-preview"></div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        Auth.require();
+
+        let currentGSTType = 'intra';
+        let items = [];
+        let viewingQ = null;
+
+        function openCreate(editId = null) {
+            items = [];
+            const q = editId ? DB.getQuotation(editId) : null;
+            const s = DB.getSettings();
+            document.getElementById('edit-id').value = editId || '';
+            document.getElementById('modal-title').textContent = editId ? 'Edit Quotation' : 'Create Quotation';
+            document.getElementById('f-qno').value = q ? q.quotationNo : DB.nextQuotationNo();
+            document.getElementById('f-date').value = q ? q.date : today();
+            document.getElementById('f-valid').value = q ? q.validUntil : addDays(30);
+            document.getElementById('f-notes').value = q ? (q.notes || '') : '';
+            document.getElementById('f-terms').value = q ? (q.termsConditions || s.termsConditions) : s.termsConditions;
+
+            const custSel = document.getElementById('f-customer');
+            custSel.innerHTML = '<option value="">Select Customer</option>' + DB.getCustomers().map(c => `<option value="${c.id}" ${q && q.customerId === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+            document.getElementById('f-cstate').innerHTML = '<option value="">Select State</option>' + stateOptions();
+
+            if (q) {
+                document.getElementById('f-cgstin').value = q.customerGSTIN || '';
+                document.getElementById('f-caddr').value = q.customerAddress || '';
+                document.getElementById('f-cstate').value = q.customerStateCode || '';
+                items = q.items ? JSON.parse(JSON.stringify(q.items)) : [];
+                currentGSTType = q.gstType || 'intra';
+            } else {
+                document.getElementById('f-cgstin').value = '';
+                document.getElementById('f-caddr').value = '';
+                items = [];
+                currentGSTType = 'intra';
+            }
+            if (items.length === 0) addItem();
+            renderItems(); recalc();
+            openModal('create-modal');
+        }
+
+        function onCustChange() {
+            const c = DB.getCustomer(document.getElementById('f-customer').value);
+            if (!c) return;
+            document.getElementById('f-cgstin').value = c.gstin || '';
+            document.getElementById('f-caddr').value = [c.address, c.city, c.state].filter(Boolean).join(', ');
+            document.getElementById('f-cstate').value = c.stateCode || '';
+            onStateChange();
+        }
+
+        function onStateChange() {
+            const s = DB.getSettings();
+            currentGSTType = gstType(s.stateCode, document.getElementById('f-cstate').value);
+            document.getElementById('gst-badge').innerHTML = currentGSTType === 'inter'
+                ? `<span class="badge badge-info">IGST (Inter-State)</span>`
+                : `<span class="badge badge-success">CGST + SGST (Intra-State)</span>`;
+            recalc();
+        }
+
+        function addItem() {
+            items.push({ name: '', hsnCode: '', qty: 1, unit: 'Nos', rate: 0, discount: 0, gstRate: 18 });
+            renderItems();
+        }
+
+        function removeItem(i) { items.splice(i, 1); renderItems(); recalc(); }
+
+        function renderItems() {
+            const prods = DB.getProducts();
+            document.getElementById('items-tbody').innerHTML = items.map((it, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>
+        <select onchange="onProdSel(${i},this)" style="width:100%;min-width:150px">
+          <option value="">-- Select --</option>
+          ${prods.map(p => `<option value="${p.id}" ${it.productId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+        <input type="text" value="${it.name || ''}" placeholder="Description" oninput="updItem(${i},'name',this.value)" style="margin-top:2px">
+      </td>
+      <td><input type="text" value="${it.hsnCode || ''}" oninput="updItem(${i},'hsnCode',this.value)" style="width:65px"></td>
+      <td><input type="number" value="${it.qty || 1}" min="0.001" step="any" oninput="updItem(${i},'qty',+this.value)" style="width:50px"></td>
+      <td><select onchange="updItem(${i},'unit',this.value)" style="width:52px">${['Nos', 'Kg', 'Mtr', 'Set', 'Pcs', 'Ltr', 'Box'].map(u => `<option ${it.unit === u ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
+      <td><input type="number" value="${it.rate || 0}" min="0" step="any" oninput="updItem(${i},'rate',+this.value)" style="width:78px"></td>
+      <td><input type="number" value="${it.discount || 0}" min="0" max="100" step="any" oninput="updItem(${i},'discount',+this.value)" style="width:52px"></td>
+      <td><select onchange="updItem(${i},'gstRate',+this.value)" style="width:52px">${[0, 5, 12, 18, 28].map(r => `<option value="${r}" ${it.gstRate === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
+      <td style="text-align:right" id="qt-${i}">${fmtCur(getT(it))}</td>
+      <td style="text-align:right" id="qg-${i}">${fmtCur(getG(it))}</td>
+      <td style="text-align:right;font-weight:700;color:var(--accent)" id="ql-${i}">${fmtCur(getL(it))}</td>
+      <td><button onclick="removeItem(${i})" class="btn btn-ghost btn-sm" style="color:var(--error);padding:4px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></td>
+    </tr>`).join('');
+        }
+
+        function onProdSel(i, sel) {
+            const p = DB.getProduct(sel.value); if (!p) return;
+            items[i] = { ...items[i], productId: p.id, name: p.name, hsnCode: p.hsnCode || '', unit: p.unit || 'Nos', rate: p.rate || 0, gstRate: p.gstRate || 18 };
+            renderItems(); recalc();
+        }
+
+        function updItem(i, f, v) {
+            items[i][f] = v;
+            const it = items[i];
+            const te = document.getElementById(`qt-${i}`); const ge = document.getElementById(`qg-${i}`); const le = document.getElementById(`ql-${i}`);
+            if (te) te.textContent = fmtCur(getT(it));
+            if (ge) ge.textContent = fmtCur(getG(it));
+            if (le) le.textContent = fmtCur(getL(it));
+            recalc();
+        }
+
+        function getT(it) { return (it.qty || 0) * (it.rate || 0) * (1 - (it.discount || 0) / 100); }
+        function getG(it) { return getT(it) * (it.gstRate || 0) / 100; }
+        function getL(it) { return getT(it) + getG(it); }
+
+        function recalc() {
+            let sub = 0, cg = 0, sg = 0, ig = 0;
+            items.forEach(it => { const t = getT(it); const g = calcGST(t, it.gstRate || 0, currentGSTType); sub += t; cg += g.cgst; sg += g.sgst; ig += g.igst; });
+            const tot = sub + cg + sg + ig;
+            document.getElementById('s-subtotal').textContent = fmtCur(sub);
+            document.getElementById('s-cgst').textContent = fmtCur(cg);
+            document.getElementById('s-sgst').textContent = fmtCur(sg);
+            document.getElementById('s-igst').textContent = fmtCur(ig);
+            document.getElementById('s-total').textContent = fmtCur(tot);
+            const inter = currentGSTType === 'inter';
+            document.getElementById('r-cgst').style.display = inter ? 'none' : '';
+            document.getElementById('r-sgst').style.display = inter ? 'none' : '';
+            document.getElementById('r-igst').style.display = inter ? '' : 'none';
+        }
+
+        async function saveQuotation() {
+            const custId = document.getElementById('f-customer').value;
+            if (!custId) { toast('Select a customer', 'error'); return; }
+            const s = DB.getSettings();
+            const cust = DB.getCustomer(custId);
+            const buyerCode = document.getElementById('f-cstate').value;
+            const gt = gstType(s.stateCode, buyerCode);
+            let sub = 0, cg = 0, sg = 0, ig = 0;
+            const processedItems = items.map(it => {
+                const t = getT(it); const g = calcGST(t, it.gstRate || 0, gt);
+                sub += t; cg += g.cgst; sg += g.sgst; ig += g.igst;
+                return { ...it, taxableAmount: t, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total: t + g.total };
+            });
+            const grand = sub + cg + sg + ig;
+            const data = {
+                quotationNo: document.getElementById('f-qno').value,
+                date: document.getElementById('f-date').value,
+                validUntil: document.getElementById('f-valid').value,
+                customerId: custId, customerName: cust ? cust.name : '',
+                customerGSTIN: document.getElementById('f-cgstin').value,
+                customerAddress: document.getElementById('f-caddr').value,
+                customerStateCode: buyerCode,
+                items: processedItems, gstType: gt,
+                subtotal: sub, totalCGST: cg, totalSGST: sg, totalIGST: ig,
+                totalGST: cg + sg + ig, grandTotal: grand,
+                notes: document.getElementById('f-notes').value,
+                termsConditions: document.getElementById('f-terms').value,
+                status: 'active'
+            };
+            const editId = document.getElementById('edit-id').value;
+            if (editId) { await DB.updateQuotation(editId, data); toast('Quotation updated!'); }
+            else { await DB.addQuotation(data); toast('Quotation created!'); }
+            closeModal('create-modal'); renderList();
+        }
+
+        function renderList() {
+            const search = (document.getElementById('search-input').value || '').toLowerCase();
+            let list = DB.getQuotations().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            if (search) list = list.filter(q => (q.quotationNo || '').toLowerCase().includes(search) || (q.customerName || '').toLowerCase().includes(search));
+            document.getElementById('q-count').textContent = `${list.length} quotation${list.length !== 1 ? 's' : ''}`;
+            const tbody = document.getElementById('q-tbody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg><h3>No quotations yet</h3><p>Create your first quotation</p><button class="btn btn-primary" onclick="openCreate()">New Quotation</button></div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(q => {
+                const now = new Date(); const vd = new Date(q.validUntil);
+                const expired = q.status !== 'converted' && vd < now;
+                const badge = q.status === 'converted' ? 'badge-success' : expired ? 'badge-error' : 'badge-primary';
+                const lbl = q.status === 'converted' ? 'Converted' : expired ? 'Expired' : 'Active';
+                return `<tr>
+      <td><strong style="color:var(--accent)">${q.quotationNo}</strong></td>
+      <td>${q.customerName || '-'}</td>
+      <td>${fmtDate(q.date)}</td>
+      <td>${fmtDate(q.validUntil)}</td>
+      <td><strong>${fmtCur(q.grandTotal)}</strong></td>
+      <td><span class="badge ${badge}">${lbl}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" title="View" onclick="viewQ('${q.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" title="Edit" onclick="openCreate('${q.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" title="Delete" onclick="delQ('${q.id}')" style="color:var(--error)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+        </div>
+      </td>
+    </tr>`;
+            }).join('');
+        }
+
+        function delQ(id) {
+            if (!confirm('Delete quotation?')) return;
+            DB.deleteQuotation(id); toast('Deleted', 'warning'); renderList();
+        }
+
+        function viewQ(id) {
+            viewingQ = DB.getQuotation(id);
+            if (!viewingQ) return;
+            document.getElementById('q-preview').innerHTML = buildQHTML(viewingQ);
+            openModal('view-modal');
+        }
+
+        function buildQHTML(q) {
+            const s = DB.getSettings();
+            const isInter = q.gstType === 'inter';
+            const rows = (q.items || []).map((it, i) => `
+    <tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${it.name || ''}</td>
+      <td style="text-align:center">${it.hsnCode || '-'}</td>
+      <td style="text-align:center">${it.qty} ${it.unit || ''}</td>
+      <td style="text-align:right">${fmtCur(it.rate)}</td>
+      <td style="text-align:center">${it.discount || 0}%</td>
+      <td style="text-align:right">${fmtCur(it.taxableAmount)}</td>
+      <td style="text-align:center">${it.gstRate}%</td>
+      ${isInter ? `<td style="text-align:right">${fmtCur(it.igst)}</td>` : `<td style="text-align:right">${fmtCur(it.cgst)}</td><td style="text-align:right">${fmtCur(it.sgst)}</td>`}
+      <td style="text-align:right;font-weight:700">${fmtCur(it.total)}</td>
+    </tr>`).join('');
+
+            return `<div id="q-print-content" style="font-family:'Inter',sans-serif;max-width:820px;margin:0 auto;padding:5px">
+                    <!-- Header Section -->
+                    <div class="inv-print-header" style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                        ${s.showLogo && s.logo ? `<img src="${s.logo}" style="max-height:65px; max-width:250px; margin-bottom:12px;">` : ''}
+                        <div class="inv-company-name" style="font-size:24px; font-weight:800; color:var(--text); margin-bottom:4px;">${s.name}</div>
+                        <div class="inv-company-details" style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+                            ${s.address ? s.address + '<br>' : ''}
+                            ${s.city ? s.city + ', ' : ''} ${s.state || ''}
+                            ${s.gstin ? ' | GSTIN: ' + s.gstin : ''}
+                            ${s.phone ? ' | Ph: ' + s.phone : ''}
+                        </div>
+                        <div class="inv-title" style="margin-top:15px; font-size:22px; font-weight:900; color:var(--accent); letter-spacing:2px; border-top:2px solid var(--accent); border-bottom:2px solid var(--accent); padding:4px 30px; display:inline-block; text-transform:uppercase;">QUOTATION</div>
+                    </div>
+
+                    <!-- Info Section -->
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                        <div style="flex:1;">
+                            <div class="inv-party-label">To</div>
+                            <div class="inv-party-name" style="font-size:16px;">${q.customerName || '-'}</div>
+                            <div class="inv-party-details">
+                                ${q.customerAddress || ''}<br>
+                                ${q.customerGSTIN ? '<strong>GSTIN:</strong> ' + q.customerGSTIN : ''}
+                            </div>
+                        </div>
+                        <div style="flex:1; text-align:right;">
+                            <div style="display:inline-block; text-align:left;">
+                                <div style="font-size:12px; margin-bottom:4px;"><strong>Quotation No:</strong> ${q.quotationNo}</div>
+                                <div style="font-size:12px; margin-bottom:4px;"><strong>Date:</strong> ${fmtDate(q.date)}</div>
+                                <div style="font-size:12px; margin-bottom:4px;"><strong>Valid Until:</strong> ${fmtDate(q.validUntil)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="inv-items-table">
+                        <thead><tr><th style="text-align:center">#</th><th>Description</th><th>HSN</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:center">Disc</th><th style="text-align:right">Taxable</th><th style="text-align:center">GST%</th>${isInter ? '<th>IGST</th>' : '<th>CGST</th><th>SGST</th>'}<th style="text-align:right">Total</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+
+                    <div class="inv-total-section">
+                        <div class="inv-total-table">
+                            <div class="inv-total-row"><span>Subtotal</span><span>${fmtCur(q.subtotal)}</span></div>
+                            ${isInter ? `<div class="inv-total-row"><span>IGST</span><span>${fmtCur(q.totalIGST)}</span></div>` : `<div class="inv-total-row"><span>CGST</span><span>${fmtCur(q.totalCGST)}</span></div><div class="inv-total-row"><span>SGST</span><span>${fmtCur(q.totalSGST)}</span></div>`}
+                            <div class="inv-total-grand"><span>Total Amount</span><span>${fmtCur(q.grandTotal)}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="inv-amount-words">Amount in words: <strong>${numWords(q.grandTotal)}</strong></div>
+
+                    <!-- Footer Section -->
+                    <div class="inv-footer" style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:30px;">
+                        <div style="flex:1.5;">
+                            ${s.showBank && s.bankName ? `<div class="inv-bank-details" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:11px; font-weight:800; margin-bottom:8px; color:var(--accent);">BANK ACCOUNT DETAILS</div>
+                                <table style="width:100%; border:none; font-size:10px;">
+                                    <tr><td style="color:var(--text-muted); width:80px; padding:2px 0;">Bank Name:</td><td style="font-weight:700;">${s.bankName}</td></tr>
+                                    <tr><td style="color:var(--text-muted); padding:2px 0;">Account No:</td><td style="font-weight:700;">${s.bankAccount}</td></tr>
+                                    <tr><td style="color:var(--text-muted); padding:2px 0;">IFSC Code:</td><td style="font-weight:700;">${s.bankIFSC}</td></tr>
+                                    ${s.reptid ? `<tr><td style="color:var(--text-muted); padding:2px 0;">REPTID:</td><td style="font-weight:700;">${s.reptid}</td></tr>` : ''}
+                                </table>
+                            </div>` : ''}
+                            ${q.termsConditions ? `<div style="margin-top:15px; font-size:9px; color:var(--text-muted); line-height:1.4;">
+                                <div style="font-weight:800; margin-bottom:4px; color:var(--text);">TERMS & CONDITIONS:</div>
+                                ${q.termsConditions.replace(/\n/g, '<br>')}
+                            </div>` : ''}
+                        </div>
+                        <div style="flex:1; text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+                            <div style="margin-bottom:10px;">
+                                ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height:55px; margin-bottom:5px;">` : '<div style="height:55px;"></div>'}
+                                <div style="font-size:12px; font-weight:800;">For ${s.name}</div>
+                                <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Authorized Signatory</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:40px; padding-top:15px; border-top:1px dashed #ccc; text-align:right;">
+                        ${q.notes ? `<div style="font-size:10px; color:var(--text-muted); margin-bottom:8px;"><strong>Note:</strong> ${q.notes}</div>` : ''}
+                        <div style="font-size:10px; color:var(--text-muted); font-style:italic;">This is a computer generated quotation.</div>
+                    </div>
+                </div>`;
+        }
+
+        function convertToInvoice() {
+            if (!viewingQ) return;
+            const q = viewingQ;
+            const invNo = DB.nextInvoiceNo();
+            const inv = {
+                invoiceNo: invNo, date: today(), duedate: addDays(30),
+                paymentStatus: 'pending', paidAmount: 0,
+                customerId: q.customerId, customerName: q.customerName,
+                customerGSTIN: q.customerGSTIN, customerAddress: q.customerAddress,
+                customerStateCode: q.customerStateCode,
+                items: q.items, gstType: q.gstType,
+                subtotal: q.subtotal, totalCGST: q.totalCGST, totalSGST: q.totalSGST,
+                totalIGST: q.totalIGST, totalGST: q.totalGST, grandTotal: q.grandTotal,
+                termsConditions: q.termsConditions, notes: q.notes, quotationId: q.id
+            };
+            DB.addInvoice(inv);
+            DB.updateQuotation(q.id, { status: 'converted' });
+            toast('Converted to Invoice: ' + invNo + '!');
+            closeModal('view-modal'); renderList();
+        }
+
+        function shareWhatsApp() {
+            if (!viewingQ) return;
+            const q = viewingQ;
+            const s = DB.getSettings();
+            const companyName = s.name || 'Company';
+            const msg = `*Quotation from ${companyName}*\n\n` +
+                `Quotation No: ${q.quotationNo}\nDate: ${fmtDate(q.date)}\nValid Until: ${fmtDate(q.validUntil)}\n\n` +
+                `Dear ${q.customerName || 'Customer'},\n\nPlease find our quotation for your requirements.\n\nTotal Amount: ${fmtCur(q.grandTotal)}\n\n` +
+                `Thank you for your business!\n\n${companyName}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function downloadQPDF() {
+            if (!viewingQ) return;
+            const el = document.getElementById('q-print-content');
+            html2pdf().set({ margin: [5, 5, 5, 5], filename: `${viewingQ.quotationNo}.pdf`, image: { type: 'jpeg', quality: .98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4' } }).from(el).save();
+            toast('PDF downloaded!');
+        }
+
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('quotation.html');
+            initSidebarUser();
+            renderList();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Login — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f1420 0%, #1a1f2e 50%, #0f1420 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px
+        }
+
+        .login-wrap {
+            width: 100%;
+            max-width: 400px
+        }
+
+        .login-brand {
+            text-align: center;
+            margin-bottom: 28px
+        }
+
+        .brand-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #f97316, #ea6c0a);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+            box-shadow: 0 8px 24px rgba(249, 115, 22, .4)
+        }
+
+        .brand-icon svg {
+            width: 32px;
+            height: 32px;
+            color: #fff
+        }
+
+        .brand-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: #f9fafb;
+            letter-spacing: -.01em
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 3px
+        }
+
+        .login-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, .25)
+        }
+
+        .login-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 6px
+        }
+
+        .login-desc {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 24px
+        }
+
+        .form-group {
+            margin-bottom: 16px
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 13px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 13.5px;
+            font-family: 'Inter', sans-serif;
+            color: #1f2937;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+            background: #fff
+        }
+
+        input:focus {
+            border-color: #f97316;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, .12)
+        }
+
+        .input-wrap {
+            position: relative
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af
+        }
+
+        .input-icon svg {
+            width: 15px;
+            height: 15px
+        }
+
+        .input-wrap input {
+            padding-left: 38px
+        }
+
+        .pass-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            display: flex
+        }
+
+        .pass-toggle svg {
+            width: 15px;
+            height: 15px
+        }
+
+        .form-row-inline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px
+        }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12.5px;
+            color: #6b7280;
+            cursor: pointer
+        }
+
+        .remember input {
+            width: auto;
+            margin: 0;
+            accent-color: #f97316
+        }
+
+        .forgot {
+            font-size: 12.5px;
+            color: #f97316;
+            font-weight: 500;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-family: inherit;
+            padding: 0
+        }
+
+        .forgot:hover {
+            text-decoration: underline
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 11px;
+            background: linear-gradient(135deg, #f97316, #ea6c0a);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: opacity .2s, transform .1s;
+            margin-bottom: 16px
+        }
+
+        .btn-login:hover {
+            opacity: .92
+        }
+
+        .btn-login:active {
+            transform: scale(.99)
+        }
+
+        .btn-login:disabled {
+            opacity: .6;
+            cursor: not-allowed
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px
+        }
+
+        .divider hr {
+            flex: 1;
+            border: none;
+            border-top: 1px solid #f3f4f6
+        }
+
+        .divider span {
+            font-size: 11px;
+            color: #9ca3af
+        }
+
+        .default-creds {
+            background: #fef9f5;
+            border: 1px solid rgba(249, 115, 22, .2);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center
+        }
+
+        .default-creds strong {
+            color: #f97316
+        }
+
+        .error-msg {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 9px 13px;
+            font-size: 12.5px;
+            color: #dc2626;
+            margin-bottom: 14px;
+            display: none
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 7px
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            animation: slideIn .3s ease
+        }
+
+        .toast-error {
+            background: #ef4444
+        }
+
+        .toast-success {
+            background: #10b981
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0)
+            }
+        }
+
+        /* Forgot Password Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .5);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all .2s
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            transform: scale(.95);
+            transition: all .2s
+        }
+
+        .modal-overlay.open .modal {
+            transform: scale(1)
+        }
+
+        .modal h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 6px
+        }
+
+        .modal p {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 18px
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 18px
+        }
+
+        .btn-sm {
+            padding: 7px 15px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            font-family: inherit
+        }
+
+        .btn-cancel {
+            background: #f3f4f6;
+            color: #6b7280
+        }
+
+        .btn-reset {
+            background: #f97316;
+            color: #fff
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-wrap">
+        <div class="login-brand">
+            <div class="brand-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <div class="brand-name">Your Company Name</div>
+            <div class="brand-sub">Billing & Invoice System</div>
+        </div>
+
+        <div class="login-card">
+            <div class="login-title">Welcome back 👋</div>
+            <div class="login-desc">Sign in to access your billing dashboard</div>
+
+            <div class="error-msg" id="error-msg"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="input-wrap">
+                        <span class="input-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg></span>
+                        <input type="text" id="username" placeholder="Enter username" required autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrap">
+                        <span class="input-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg></span>
+                        <input type="password" id="password" placeholder="Enter password" required
+                            autocomplete="current-password">
+                        <button type="button" class="pass-toggle" id="pass-toggle" onclick="togglePass()">
+                            <svg id="eye-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-row-inline">
+                    <label class="remember"><input type="checkbox" id="remember"> Remember me</label>
+                    <button type="button" class="forgot" onclick="openForgot()">Forgot password?</button>
+                </div>
+                <button type="submit" class="btn-login" id="login-btn">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div class="modal-overlay" id="forgot-modal">
+        <div class="modal">
+            <h3>Reset Password</h3>
+            <p>Enter your username and new password to reset it.</p>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="reset-username" placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" id="reset-newpass" placeholder="Enter new password">
+            </div>
+            <div class="form-group">
+                <label>Admin Code (contact your admin)</label>
+                <input type="text" id="reset-code" placeholder="Enter admin code: ADMIN2025">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-sm btn-cancel" onclick="closeForgot()">Cancel</button>
+                <button class="btn-sm btn-reset" onclick="doReset()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="js/app.js?v=2.1?v=2"></script>
+    <script>
+        const AUTH_CODE = 'ADMIN2025';
+
+        // Auto-redirect if already logged in
+        if (sessionStorage.getItem('vew_user')) window.location.href = 'dashboard.html';
+
+        document.getElementById('login-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errEl = document.getElementById('error-msg');
+
+            btn.textContent = 'Signing in...'; btn.disabled = true;
+            errEl.style.display = 'none';
+
+            try {
+                await DB.init();
+                const res = await Auth.login(username, password);
+                if (res.ok) {
+                    if (document.getElementById('remember').checked) localStorage.setItem('vew_remember', username);
+                    window.location.href = 'dashboard.html';
+                } else {
+                    errEl.textContent = '❌ ' + res.error;
+                    errEl.style.display = 'block';
+                    btn.textContent = 'Sign In'; btn.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                errEl.textContent = '❌ An unexpected error occurred.';
+                errEl.style.display = 'block';
+                btn.textContent = 'Sign In'; btn.disabled = false;
+            }
+        });
+
+        function togglePass() {
+            const p = document.getElementById('password');
+            p.type = p.type === 'password' ? 'text' : 'password';
+        }
+
+        function openForgot() { document.getElementById('forgot-modal').classList.add('open'); }
+        function closeForgot() { document.getElementById('forgot-modal').classList.remove('open'); }
+
+        async function doReset() {
+            const uname = document.getElementById('reset-username').value.trim();
+            const newpass = document.getElementById('reset-newpass').value.trim();
+            const code = document.getElementById('reset-code').value.trim();
+            
+            if (code !== AUTH_CODE) { alert('Invalid admin code'); return; }
+            if (!uname || !newpass) { alert('Fill all fields'); return; }
+            
+            await DB.init();
+            const users = DB.getUsers();
+            const u = users.find(x => x.username === uname);
+            if (!u) { alert('Username not found'); return; }
+            
+            u.password = newpass;
+            await DB.saveUsers(users);
+            alert('Password reset successfully!');
+            closeForgot();
+        }
+
+        // Pre-fill remembered username
+        const rem = localStorage.getItem('vew_remember');
+        if (rem) { document.getElementById('username').value = rem; document.getElementById('remember').checked = true; }
+    </script>
+</body>
+
+</html>

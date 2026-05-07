@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Products — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <div id="sidebar-mount"></div>
+        <div class="main-content">
+            <header class="top-header no-print">
+                <div>
+                    <div class="page-title">Products</div>
+                    <div class="page-subtitle">Manage products with HSN codes and GST rates</div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-bar">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search products..." oninput="renderList()">
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="addDefaults()"
+                        title="Load default road safety products">Load Defaults</button>
+                    <button class="btn btn-primary" onclick="openForm()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Product
+                    </button>
+                </div>
+            </header>
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Product Catalog</span><span id="count"
+                            style="font-size:12px;color:var(--text-muted)"></span></div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product Name</th>
+                                    <th>HSN Code</th>
+                                    <th>Unit</th>
+                                    <th>Rate (₹)</th>
+                                    <th>GST %</th>
+                                    <th>Stock</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="p-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Modal -->
+    <div class="modal-overlay" id="form-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Add Product</span>
+                <button class="modal-close" onclick="closeModal('form-modal')"><svg fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group"><label class="required">Product Name</label><input type="text" id="f-name"
+                            placeholder="e.g. Road Safety Barricade"></div>
+                    <div class="form-group"><label>HSN Code</label><input type="text" id="f-hsn"
+                            placeholder="e.g. 7308"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Unit</label>
+                        <select id="f-unit">
+                            <option>Nos</option><option>Kg</option><option>Mtr</option>
+                            <option>Set</option><option>Pcs</option><option>Ltr</option>
+                            <option>Box</option><option>Pair</option><option>Sq.Mtr</option><option>Running Mtr</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Rate (₹)</label><input type="number" id="f-rate" placeholder="0.00"
+                            min="0" step="any"></div>
+                    <div class="form-group"><label>GST Rate %</label>
+                        <select id="f-gst">
+                            <option value="0">0% (Exempt)</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18" selected>18%</option>
+                            <option value="28">28%</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Stock Quantity</label><input type="number" id="f-stock"
+                            placeholder="0" min="0"></div>
+                    <div class="form-group"><label>Low Stock Alert (qty)</label><input type="number" id="f-lowstock"
+                            placeholder="10" min="0"></div>
+                </div>
+                <div class="form-group"><label>Description</label><textarea id="f-desc" rows="2"
+                        placeholder="Product description..."></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('form-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Update Modal -->
+    <div class="modal-overlay modal-sm" id="stock-modal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <span class="modal-title">Update Stock</span>
+                <button class="modal-close" onclick="closeModal('stock-modal')"><svg fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="stock-edit-id">
+                <div class="form-group"><label>Product</label><input type="text" id="stock-prod-name" readonly
+                        style="background:#f9fafb"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Type</label>
+                        <select id="stock-type">
+                            <option value="add">Add Stock (+)</option>
+                            <option value="remove">Remove Stock (-)</option>
+                            <option value="set">Set Exact Quantity</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Quantity</label><input type="number" id="stock-qty" min="0"
+                            placeholder="0"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('stock-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="doStockUpdate()">Update Stock</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="js/app.js?v=2.1"></script>
+    <script>
+        Auth.require();
+
+        const DEFAULT_PRODUCTS = [
+            { name: 'Road Safety Barricade', hsnCode: '7308', unit: 'Nos', rate: 1500, gstRate: 18, stock: 0, description: 'Metal road safety barricade' },
+            { name: 'Reflective Sign Board', hsnCode: '8310', unit: 'Nos', rate: 2500, gstRate: 18, stock: 0, description: 'Retro-reflective road sign board' },
+            { name: 'Traffic Signal Pole', hsnCode: '7308', unit: 'Nos', rate: 8000, gstRate: 18, stock: 0, description: 'Steel traffic signal pole' },
+            { name: 'CCTV Structure/Pole', hsnCode: '7308', unit: 'Nos', rate: 12000, gstRate: 18, stock: 0, description: 'CCTV mounting structure' },
+            { name: 'Police GPS Unit', hsnCode: '8526', unit: 'Nos', rate: 15000, gstRate: 18, stock: 0, description: 'Vehicle GPS tracking unit' },
+            { name: 'Breathalyzer', hsnCode: '9027', unit: 'Nos', rate: 25000, gstRate: 18, stock: 0, description: 'Police grade breathalyzer' },
+            { name: 'Traffic Light System', hsnCode: '8531', unit: 'Set', rate: 45000, gstRate: 18, stock: 0, description: '3-phase traffic light system' },
+            { name: 'Speed Breaker', hsnCode: '3926', unit: 'Mtr', rate: 800, gstRate: 18, stock: 0, description: 'Rubber speed breaker strip' },
+            { name: 'Road Stud (Cat eye)', hsnCode: '3926', unit: 'Nos', rate: 350, gstRate: 12, stock: 0, description: 'Reflective cat eye road stud' },
+            { name: 'Delineator Post', hsnCode: '3926', unit: 'Nos', rate: 650, gstRate: 18, stock: 0, description: 'Flexible delineator post' },
+        ];
+
+        function addDefaults() {
+            if (!confirm('Add default road safety products to catalog?')) return;
+            DEFAULT_PRODUCTS.forEach(p => DB.addProduct(p));
+            toast('Default products added!'); renderList();
+        }
+
+        function openForm(editId = null) {
+            const p = editId ? DB.getProduct(editId) : null;
+            document.getElementById('edit-id').value = editId || '';
+            document.getElementById('modal-title').textContent = editId ? 'Edit Product' : 'Add Product';
+            document.getElementById('f-name').value = p ? p.name : '';
+            document.getElementById('f-hsn').value = p ? p.hsnCode : '';
+            document.getElementById('f-unit').value = p ? p.unit : 'Nos';
+            document.getElementById('f-rate').value = p ? p.rate : 0;
+            document.getElementById('f-gst').value = p ? p.gstRate : 18;
+            document.getElementById('f-stock').value = p ? p.stock : 0;
+            document.getElementById('f-lowstock').value = p ? (p.lowStockAlert || 10) : 10;
+            document.getElementById('f-desc').value = p ? p.description : '';
+            openModal('form-modal');
+        }
+
+        async function saveProduct() {
+            const name = document.getElementById('f-name').value.trim();
+            if (!name) { toast('Product name required', 'error'); return; }
+            const data = {
+                name, hsnCode: document.getElementById('f-hsn').value.trim(),
+                unit: document.getElementById('f-unit').value,
+                rate: parseFloat(document.getElementById('f-rate').value) || 0,
+                gstRate: parseInt(document.getElementById('f-gst').value) || 18,
+                stock: parseInt(document.getElementById('f-stock').value) || 0,
+                lowStockAlert: parseInt(document.getElementById('f-lowstock').value) || 10,
+                description: document.getElementById('f-desc').value.trim()
+            };
+            const editId = document.getElementById('edit-id').value;
+            if (editId) { await DB.updateProduct(editId, data); toast('Product updated!'); }
+            else { await DB.addProduct(data); toast('Product added!'); }
+            closeModal('form-modal'); renderList();
+        }
+
+        function openStockModal(id) {
+            const p = DB.getProduct(id);
+            if (!p) return;
+            document.getElementById('stock-edit-id').value = id;
+            document.getElementById('stock-prod-name').value = p.name;
+            document.getElementById('stock-qty').value = '';
+            openModal('stock-modal');
+        }
+
+        function doStockUpdate() {
+            const id = document.getElementById('stock-edit-id').value;
+            const p = DB.getProduct(id);
+            const type = document.getElementById('stock-type').value;
+            const qty = parseInt(document.getElementById('stock-qty').value) || 0;
+            let newStock = p.stock || 0;
+            if (type === 'add') newStock += qty;
+            else if (type === 'remove') newStock = Math.max(0, newStock - qty);
+            else newStock = qty;
+            DB.updateProduct(id, { stock: newStock });
+            toast(`Stock updated to ${newStock}`);
+            closeModal('stock-modal'); renderList();
+        }
+
+        function renderList() {
+            const search = (document.getElementById('search-input').value || '').toLowerCase();
+            let list = DB.getProducts().sort((a, b) => a.name.localeCompare(b.name));
+            if (search) list = list.filter(p => (p.name || '').toLowerCase().includes(search) || (p.hsnCode || '').includes(search));
+            document.getElementById('count').textContent = `${list.length} product${list.length !== 1 ? 's' : ''}`;
+            const tbody = document.getElementById('p-tbody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg><h3>No products yet</h3><p>Add products or load default road safety products</p><button class="btn btn-primary" onclick="addDefaults()">Load Defaults</button></div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map(p => {
+                const lowStock = p.stock <= (p.lowStockAlert || 10);
+                const stockBadge = p.stock === 0 ? 'badge-error' : lowStock ? 'badge-warning' : 'badge-success';
+                return `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td>${p.hsnCode ? `<code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${p.hsnCode}</code>` : '-'}</td>
+      <td>${p.unit || 'Nos'}</td>
+      <td><strong>${fmtCur(p.rate)}</strong></td>
+      <td><span class="badge badge-info">${p.gstRate || 18}%</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="badge ${stockBadge}">${p.stock || 0}</span>
+          <button class="btn btn-ghost btn-sm" onclick="openStockModal('${p.id}')" title="Update Stock" style="padding:3px">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </button>
+        </div>
+      </td>
+      <td style="color:var(--text-muted);font-size:12px">${p.description || '-'}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" onclick="openForm('${p.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          <button class="btn btn-ghost btn-sm" onclick="del('${p.id}')" style="color:var(--error)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+        </div>
+      </td>
+    </tr>`;
+            }).join('');
+        }
+
+        function del(id) {
+            if (!confirm('Delete product?')) return;
+            DB.deleteProduct(id); toast('Deleted', 'warning'); renderList();
+        }
+
+        DB.init().then(() => {
+            document.getElementById('sidebar-mount').innerHTML = sidebarHTML('products.html');
+            initSidebarUser();
+            renderList();
+        });
+    </script>
+</body>
+
+</html>
