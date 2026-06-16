@@ -139,22 +139,31 @@
         }
 
         async function saveMaterial() {
-            const qty = +document.getElementById('f-qty').value || 0;
-            const rate = +document.getElementById('f-rate').value || 0;
-            const gst = +document.getElementById('f-gst').value || 0;
+            const name = document.getElementById('f-name').value.trim();
+            const dateVal = document.getElementById('f-date').value;
+            if (!dateVal) { toast('Date is required', 'error'); return; }
+            if (!name) { toast('Material name is required', 'error'); return; }
+            
+            const qty = parseFloat(document.getElementById('f-qty').value) || 0;
+            const rate = parseFloat(document.getElementById('f-rate').value) || 0;
+            if (qty <= 0) { toast('Quantity must be greater than 0', 'error'); return; }
+            if (rate <= 0) { toast('Rate must be greater than 0', 'error'); return; }
+            
+            const gst = parseFloat(document.getElementById('f-gst').value) || 0;
             const subtotal = qty * rate;
             const gstAmt = subtotal * (gst / 100);
+            const totalAmount = subtotal + gstAmt;
             
             const data = {
-                date: document.getElementById('f-date').value,
-                supplier: document.getElementById('f-supplier').value,
-                name: document.getElementById('f-name').value,
+                date: dateVal,
+                supplier: document.getElementById('f-supplier').value.trim(),
+                name: name,
                 quantity: qty,
                 rate: rate,
                 gstRate: gst,
                 cgst: gstAmt / 2,
                 sgst: gstAmt / 2,
-                totalAmount: subtotal + gstAmt,
+                totalAmount: totalAmount,
                 billUrl: document.getElementById('f-bill-url').value
             };
 
@@ -199,9 +208,7 @@
 
         async function deleteMaterial(id) {
             if (!confirm('Are you sure you want to delete this material record?')) return;
-            await DB.fetchAPI('delete', { table: 'materials', id });
-            // Update cache
-            DB.cache.materials = DB.cache.materials.filter(x => x.id !== id);
+            await DB.deleteMaterial(id);
             renderList();
             toast('Material deleted', 'warning');
         }

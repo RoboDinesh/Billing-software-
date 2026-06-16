@@ -1,14 +1,12 @@
--- Billing System - Database Schema
-
+-- Billing System - Database Schema (Multi-Tenant)
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+05:30";
 
--- --------------------------------------------------------
-
 -- Table: settings
 CREATE TABLE IF NOT EXISTS `settings` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `company_id` varchar(50) NOT NULL,
   `company_name` varchar(255) DEFAULT 'Your Company Name',
   `gstin` varchar(50) DEFAULT '',
   `address` text,
@@ -28,16 +26,14 @@ CREATE TABLE IF NOT EXISTS `settings` (
   `show_logo` tinyint(1) DEFAULT 1,
   `show_bank` tinyint(1) DEFAULT 1,
   `show_signature` tinyint(1) DEFAULT 1,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `company_id` (`company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-INSERT INTO `settings` (`id`, `company_name`, `state_name`, `state_code`) VALUES (1, 'Your Company Name', 'State', 'XX');
-
--- --------------------------------------------------------
 
 -- Table: users
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `company_id` varchar(50) NOT NULL,
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `name` varchar(100) NOT NULL,
@@ -47,13 +43,10 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `users` (`username`, `password`, `name`, `role`) VALUES ('admin', 'admin123', 'Administrator', 'admin');
-
--- --------------------------------------------------------
-
 -- Table: customers
 CREATE TABLE IF NOT EXISTS `customers` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `gstin` varchar(50) DEFAULT '',
   `address` text,
@@ -64,11 +57,10 @@ CREATE TABLE IF NOT EXISTS `customers` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
 -- Table: products
 CREATE TABLE IF NOT EXISTS `products` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `hsn` varchar(50) DEFAULT '',
   `unit` varchar(20) DEFAULT 'Nos',
@@ -78,11 +70,10 @@ CREATE TABLE IF NOT EXISTS `products` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
 -- Table: invoices
 CREATE TABLE IF NOT EXISTS `invoices` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `invoice_no` varchar(50) NOT NULL,
   `invoice_date` date NOT NULL,
   `due_date` date DEFAULT NULL,
@@ -104,11 +95,10 @@ CREATE TABLE IF NOT EXISTS `invoices` (
   UNIQUE KEY `invoice_no` (`invoice_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
 -- Table: quotations
 CREATE TABLE IF NOT EXISTS `quotations` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `quotation_no` varchar(50) NOT NULL,
   `quotation_date` date NOT NULL,
   `customer_id` varchar(50) NOT NULL,
@@ -129,11 +119,10 @@ CREATE TABLE IF NOT EXISTS `quotations` (
   UNIQUE KEY `quotation_no` (`quotation_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
 -- Table: challans
 CREATE TABLE IF NOT EXISTS `challans` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `challan_no` varchar(50) NOT NULL,
   `challan_date` date NOT NULL,
   `customer_id` varchar(50) NOT NULL,
@@ -149,11 +138,10 @@ CREATE TABLE IF NOT EXISTS `challans` (
   UNIQUE KEY `challan_no` (`challan_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
 -- Table: labors
 CREATE TABLE IF NOT EXISTS `labors` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `phone` varchar(20) DEFAULT '',
   `address` text,
@@ -162,11 +150,10 @@ CREATE TABLE IF NOT EXISTS `labors` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
 -- Table: labor_ledger
 CREATE TABLE IF NOT EXISTS `labor_ledger` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `labor_id` varchar(50) NOT NULL,
   `entry_date` date NOT NULL,
   `type` enum('payment','work') NOT NULL,
@@ -180,6 +167,7 @@ CREATE TABLE IF NOT EXISTS `labor_ledger` (
 -- Table: materials
 CREATE TABLE IF NOT EXISTS `materials` (
   `id` varchar(50) NOT NULL,
+  `company_id` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `quantity` decimal(15,3) NOT NULL,
   `rate` decimal(15,2) NOT NULL,
@@ -195,3 +183,4 @@ CREATE TABLE IF NOT EXISTS `materials` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 COMMIT;
+

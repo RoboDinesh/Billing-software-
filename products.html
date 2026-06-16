@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Products — Billing System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Inventory — Billing System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -15,8 +15,8 @@
         <div class="main-content">
             <header class="top-header no-print">
                 <div>
-                    <div class="page-title">Products</div>
-                    <div class="page-subtitle">Manage products with HSN codes and GST rates</div>
+                    <div class="page-title">Inventory</div>
+                    <div class="page-subtitle">Manage road safety items, electrical equipment and stock</div>
                 </div>
                 <div class="header-actions">
                     <div class="search-bar">
@@ -26,8 +26,12 @@
                         </svg>
                         <input type="text" id="search-input" placeholder="Search products..." oninput="renderList()">
                     </div>
-                    <button class="btn btn-outline btn-sm" onclick="addDefaults()"
-                        title="Load default road safety products">Load Defaults</button>
+                    <button class="btn btn-outline" onclick="resetToEngineeringDefaults()" style="border-color: var(--error); color: var(--error);">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Reset to Engineering Defaults
+                    </button>
                     <button class="btn btn-primary" onclick="openForm()">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -45,12 +49,12 @@
                             <thead>
                                 <tr>
                                     <th>Product Name</th>
+                                    <th>Manufacturer</th>
                                     <th>HSN Code</th>
-                                    <th>Unit</th>
                                     <th>Rate (₹)</th>
+                                    <th>MRP (₹)</th>
                                     <th>GST %</th>
                                     <th>Stock</th>
-                                    <th>Description</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -77,26 +81,33 @@
                 <input type="hidden" id="edit-id">
                 <div class="form-row">
                     <div class="form-group"><label class="required">Product Name</label><input type="text" id="f-name"
-                            placeholder="e.g. Road Safety Barricade"></div>
-                    <div class="form-group"><label>HSN Code</label><input type="text" id="f-hsn"
-                            placeholder="e.g. 7308"></div>
+                            placeholder="e.g. Steel Rod 12mm"></div>
+                    <div class="form-group"><label>Manufacturer</label><input type="text" id="f-mfr"
+                            placeholder="e.g. TATA Steel, JSW"></div>
                 </div>
                 <div class="form-row">
+                    <div class="form-group"><label>HSN Code</label><input type="text" id="f-hsn"
+                            placeholder="e.g. 3004"></div>
                     <div class="form-group"><label>Unit</label>
                         <select id="f-unit">
-                            <option>Nos</option><option>Kg</option><option>Mtr</option>
-                            <option>Set</option><option>Pcs</option><option>Ltr</option>
-                            <option>Box</option><option>Pair</option><option>Sq.Mtr</option><option>Running Mtr</option>
+                            <option value="Nos">Nos</option><option value="Kg">Kg</option><option value="Mtr">Mtr</option>
+                            <option value="Set">Set</option><option value="Pcs">Pcs</option><option value="Ltr">Ltr</option>
+                            <option value="Box">Box</option><option value="Pair">Pair</option>
+                            <option value="Sq.Mtr">Sq.Mtr</option><option value="Running Mtr">Running Mtr</option>
                         </select>
                     </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group"><label>Rate (₹)</label><input type="number" id="f-rate" placeholder="0.00"
+                            min="0" step="any"></div>
+                    <div class="form-group"><label>MRP (₹)</label><input type="number" id="f-mrp" placeholder="0.00"
                             min="0" step="any"></div>
                     <div class="form-group"><label>GST Rate %</label>
                         <select id="f-gst">
                             <option value="0">0% (Exempt)</option>
                             <option value="5">5%</option>
-                            <option value="12">12%</option>
-                            <option value="18" selected>18%</option>
+                            <option value="12" selected>12%</option>
+                            <option value="18">18%</option>
                             <option value="28">28%</option>
                         </select>
                     </div>
@@ -157,22 +168,33 @@
         Auth.require();
 
         const DEFAULT_PRODUCTS = [
-            { name: 'Road Safety Barricade', hsnCode: '7308', unit: 'Nos', rate: 1500, gstRate: 18, stock: 0, description: 'Metal road safety barricade' },
-            { name: 'Reflective Sign Board', hsnCode: '8310', unit: 'Nos', rate: 2500, gstRate: 18, stock: 0, description: 'Retro-reflective road sign board' },
-            { name: 'Traffic Signal Pole', hsnCode: '7308', unit: 'Nos', rate: 8000, gstRate: 18, stock: 0, description: 'Steel traffic signal pole' },
-            { name: 'CCTV Structure/Pole', hsnCode: '7308', unit: 'Nos', rate: 12000, gstRate: 18, stock: 0, description: 'CCTV mounting structure' },
-            { name: 'Police GPS Unit', hsnCode: '8526', unit: 'Nos', rate: 15000, gstRate: 18, stock: 0, description: 'Vehicle GPS tracking unit' },
-            { name: 'Breathalyzer', hsnCode: '9027', unit: 'Nos', rate: 25000, gstRate: 18, stock: 0, description: 'Police grade breathalyzer' },
-            { name: 'Traffic Light System', hsnCode: '8531', unit: 'Set', rate: 45000, gstRate: 18, stock: 0, description: '3-phase traffic light system' },
-            { name: 'Speed Breaker', hsnCode: '3926', unit: 'Mtr', rate: 800, gstRate: 18, stock: 0, description: 'Rubber speed breaker strip' },
-            { name: 'Road Stud (Cat eye)', hsnCode: '3926', unit: 'Nos', rate: 350, gstRate: 12, stock: 0, description: 'Reflective cat eye road stud' },
-            { name: 'Delineator Post', hsnCode: '3926', unit: 'Nos', rate: 650, gstRate: 18, stock: 0, description: 'Flexible delineator post' },
+            { name: 'LED Road Light 60W', mfr: 'Havells', hsnCode: '9405', unit: 'Nos', rate: 2400, mrp: 3500, gstRate: 18, stock: 100, description: 'High brightness street light' },
+            { name: 'Solar Traffic Signal', mfr: 'AutoSignal', hsnCode: '8530', unit: 'Set', rate: 45000, mrp: 55000, gstRate: 12, stock: 10, description: '4-way solar powered signal' },
+            { name: 'Plastic Road Barricade', mfr: 'SafetyFirst', hsnCode: '3926', unit: 'Nos', rate: 1800, mrp: 2500, gstRate: 18, stock: 50, description: 'Interlocking water-fillable' },
+            { name: 'Caution Board (Danger)', mfr: 'Signage Pro', hsnCode: '8310', unit: 'Nos', rate: 450, mrp: 600, gstRate: 12, stock: 200, description: 'Metal sign with reflective coating' },
+            { name: 'Solar Blinker (Yellow)', mfr: 'PowerLight', hsnCode: '8530', unit: 'Nos', rate: 3200, mrp: 4200, gstRate: 12, stock: 40, description: 'Hazard warning blinker' },
+            { name: 'Reflective Safety Vest', mfr: 'WorkWear', hsnCode: '6114', unit: 'Nos', rate: 150, mrp: 250, gstRate: 5, stock: 500, description: 'High visibility neon green' },
         ];
 
-        function addDefaults() {
+        async function addDefaults() {
             if (!confirm('Add default road safety products to catalog?')) return;
-            DEFAULT_PRODUCTS.forEach(p => DB.addProduct(p));
+            for (const p of DEFAULT_PRODUCTS) {
+                await DB.addProduct(p);
+            }
             toast('Default products added!'); renderList();
+        }
+
+        async function resetToEngineeringDefaults() {
+            if (!confirm('Are you sure you want to delete all existing products and load the engineering/road safety defaults? This cannot be undone.')) return;
+            const allProducts = DB.getProducts();
+            for (const p of allProducts) {
+                await DB.deleteProduct(p.id);
+            }
+            for (const p of DEFAULT_PRODUCTS) {
+                await DB.addProduct(p);
+            }
+            toast('Inventory reset to Engineering Defaults!');
+            renderList();
         }
 
         function openForm(editId = null) {
@@ -180,10 +202,12 @@
             document.getElementById('edit-id').value = editId || '';
             document.getElementById('modal-title').textContent = editId ? 'Edit Product' : 'Add Product';
             document.getElementById('f-name').value = p ? p.name : '';
+            document.getElementById('f-mfr').value = p ? p.mfr : '';
             document.getElementById('f-hsn').value = p ? p.hsnCode : '';
             document.getElementById('f-unit').value = p ? p.unit : 'Nos';
             document.getElementById('f-rate').value = p ? p.rate : 0;
-            document.getElementById('f-gst').value = p ? p.gstRate : 18;
+            document.getElementById('f-mrp').value = p ? p.mrp : 0;
+            document.getElementById('f-gst').value = p ? p.gstRate : 12;
             document.getElementById('f-stock').value = p ? p.stock : 0;
             document.getElementById('f-lowstock').value = p ? (p.lowStockAlert || 10) : 10;
             document.getElementById('f-desc').value = p ? p.description : '';
@@ -194,10 +218,13 @@
             const name = document.getElementById('f-name').value.trim();
             if (!name) { toast('Product name required', 'error'); return; }
             const data = {
-                name, hsnCode: document.getElementById('f-hsn').value.trim(),
+                name, 
+                mfr: document.getElementById('f-mfr').value.trim(),
+                hsnCode: document.getElementById('f-hsn').value.trim(),
                 unit: document.getElementById('f-unit').value,
                 rate: parseFloat(document.getElementById('f-rate').value) || 0,
-                gstRate: parseInt(document.getElementById('f-gst').value) || 18,
+                mrp: parseFloat(document.getElementById('f-mrp').value) || 0,
+                gstRate: parseFloat(document.getElementById('f-gst').value),
                 stock: parseInt(document.getElementById('f-stock').value) || 0,
                 lowStockAlert: parseInt(document.getElementById('f-lowstock').value) || 10,
                 description: document.getElementById('f-desc').value.trim()
@@ -238,7 +265,7 @@
             document.getElementById('count').textContent = `${list.length} product${list.length !== 1 ? 's' : ''}`;
             const tbody = document.getElementById('p-tbody');
             if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg><h3>No products yet</h3><p>Add products or load default road safety products</p><button class="btn btn-primary" onclick="addDefaults()">Load Defaults</button></div></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg><h3>No products yet</h3><p>Add products or load default engineering products</p><button class="btn btn-primary" onclick="addDefaults()">Load Defaults</button></div></td></tr>`;
                 return;
             }
             tbody.innerHTML = list.map(p => {
@@ -246,10 +273,11 @@
                 const stockBadge = p.stock === 0 ? 'badge-error' : lowStock ? 'badge-warning' : 'badge-success';
                 return `<tr>
       <td><strong>${p.name}</strong></td>
+      <td>${p.mfr || '-'}</td>
       <td>${p.hsnCode ? `<code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${p.hsnCode}</code>` : '-'}</td>
-      <td>${p.unit || 'Nos'}</td>
       <td><strong>${fmtCur(p.rate)}</strong></td>
-      <td><span class="badge badge-info">${p.gstRate || 18}%</span></td>
+      <td><strong>${fmtCur(p.mrp)}</strong></td>
+      <td><span class="badge badge-info">${p.gstRate || 12}%</span></td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="badge ${stockBadge}">${p.stock || 0}</span>
@@ -258,7 +286,6 @@
           </button>
         </div>
       </td>
-      <td style="color:var(--text-muted);font-size:12px">${p.description || '-'}</td>
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="openForm('${p.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>

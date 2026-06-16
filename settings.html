@@ -259,6 +259,7 @@
         DB.init().then(() => {
             document.getElementById('sidebar-mount').innerHTML = sidebarHTML('settings.html');
             initSidebarUser();
+            renderUsers();
 
             // Populate state dropdown
             document.getElementById('s-state-sel').innerHTML = '<option value="">Select State</option>' + stateOptions();
@@ -334,15 +335,15 @@
                 try {
                     const data = JSON.parse(e.target.result);
                     if (confirm('This will OVERWRITE your current settings and local data. Continue?')) {
-                        localStorage.setItem('vew_settings', JSON.stringify(data.settings || {}));
-                        localStorage.setItem('vew_customers', JSON.stringify(data.customers || []));
-                        localStorage.setItem('vew_products', JSON.stringify(data.products || []));
-                        localStorage.setItem('vew_invoices', JSON.stringify(data.invoices || []));
-                        localStorage.setItem('vew_quotations', JSON.stringify(data.quotations || []));
-                        localStorage.setItem('vew_challans', JSON.stringify(data.challans || []));
-                        localStorage.setItem('vew_labors', JSON.stringify(data.labors || []));
-                        localStorage.setItem('vew_ledger', JSON.stringify(data.ledger || []));
-                        localStorage.setItem('vew_users', JSON.stringify(data.users || []));
+                        LS.set('settings', data.settings || {});
+                        LS.set('customers', data.customers || []);
+                        LS.set('products', data.products || []);
+                        LS.set('invoices', data.invoices || []);
+                        LS.set('quotations', data.quotations || []);
+                        LS.set('challans', data.challans || []);
+                        LS.set('labors', data.labors || []);
+                        LS.set('ledger', data.ledger || []);
+                        LS.set('users', data.users || []);
                         alert('Data imported successfully. Reloading...');
                         location.reload();
                     }
@@ -501,8 +502,6 @@
             const users = DB.getUsers().filter(u => u.id !== id);
             DB.saveUsers(users); toast('User deleted', 'warning'); renderUsers();
         }
-
-        renderUsers();
     </script>
 </body>
 

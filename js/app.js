@@ -23,12 +23,13 @@ const DB = {
         quotations: [],
         challans: [],
         labors: [],
-        ledger: []
+        ledger: [],
+        materials: []
     },
 
     async init() {
         try {
-            const [s, u, c, p, i, q, ch, l, ll] = await Promise.all([
+            const results = await Promise.all([
                 this.fetchAPI('get_settings'),
                 this.fetchAPI('get_users'),
                 this.fetchAPI('get_customers'),
@@ -37,10 +38,14 @@ const DB = {
                 this.fetchAPI('get_quotations'),
                 this.fetchAPI('get_challans'),
                 this.fetchAPI('get_labors'),
-                this.fetchAPI('get_labor_ledger')
+                this.fetchAPI('get_labor_ledger'),
+                this.fetchAPI('get_materials')
             ]);
             
-            // Map Settings
+            // If any critical call failed, throw to trigger fallback
+            results.forEach(res => { if (res && res.ok === false) throw new Error(res.error); });
+
+            const [s, u, c, p, i, q, ch, l, ll, m] = results;
             if (!s || !s.company_name) {
                 this.cache.settings = {
                     name: 'Your Company Name', gstin: '', address: '',
@@ -68,7 +73,15 @@ const DB = {
             this.cache.customers = (c || []).map(x => ({ ...x, stateCode: x.state_code, createdAt: x.created_at }));
             
             // Map Products
-            this.cache.products = (p || []).map(x => ({ ...x, hsnCode: x.hsn, gstRate: parseFloat(x.gst_rate), rate: parseFloat(x.price), createdAt: x.created_at }));
+            this.cache.products = (p || []).map(x => ({ 
+                ...x, 
+                hsnCode: x.hsn, 
+                gstRate: parseFloat(x.gst_rate), 
+                rate: parseFloat(x.price), 
+                mfr: x.manufacturer || '',
+                mrp: parseFloat(x.mrp || 0),
+                createdAt: x.created_at 
+            }));
             
             // Map Invoices
             this.cache.invoices = (i || []).map(x => {
@@ -79,10 +92,20 @@ const DB = {
                 return {
                     id: x.id, invoiceNo: x.invoice_no, date: x.invoice_date, duedate: x.due_date || x.invoice_date,
                     paymentStatus: x.payment_status || 'pending', paidAmount: parseFloat(x.paid_amount || 0),
-                    customerId: x.customer_id, customerName: x.customer ? x.customer.name : (x.customer_name || ''),
+                    customerId: x.customer_id, 
+                    customerName: x.customer ? x.customer.name : (x.customer_name || ''),
                     customerGSTIN: x.customer ? x.customer.gstin : (x.customer_gstin || ''), 
                     customerAddress: x.customer ? x.customer.address : (x.customer_address || ''),
                     customerStateCode: x.customer ? x.customer.stateCode : (x.customer_state_code || ''),
+                    
+                    // Logistics and Order info from customer_json or direct fields:
+                    supplyOrderNo: x.customer ? (x.customer.supplyOrderNo || '') : (x.supplyOrderNo || ''),
+                    buyerOrderNo: x.customer ? (x.customer.buyerOrderNo || '') : (x.buyerOrderNo || ''),
+                    eWayBill: x.customer ? (x.customer.eWayBill || '') : (x.eWayBill || ''),
+                    vehicleNo: x.customer ? (x.customer.vehicleNo || '') : (x.vehicleNo || ''),
+                    destination: x.customer ? (x.customer.destination || '') : (x.destination || ''),
+                    paymentMode: x.customer ? (x.customer.paymentMode || '') : (x.paymentMode || ''),
+                    
                     items: x.items || [], gstType: x.gst_type || 'intra',
                     subtotal: sub, totalCGST: cgst, totalSGST: sgst, totalIGST: igst, 
                     totalGST: cgst + sgst + igst,
@@ -122,6 +145,16 @@ const DB = {
             // Map Labor Ledger
             this.cache.ledger = (ll || []).map(x => ({ ...x, laborId: x.labor_id, entryDate: x.entry_date, createdAt: x.created_at, amount: parseFloat(x.amount) }));
 
+            // Map Materials
+            this.cache.materials = (m || []).map(x => ({ 
+                ...x, 
+                quantity: parseFloat(x.quantity), 
+                rate: parseFloat(x.rate), 
+                gstRate: parseFloat(x.gst_rate),
+                totalAmount: parseFloat(x.total_amount),
+                createdAt: x.created_at 
+            }));
+
         } catch (e) {
             console.warn('DB API Init Failed, falling back to localStorage:', e.message);
             DB_MODE = 'local';
@@ -133,7 +166,7 @@ const DB = {
                 bankName: '', bankAccount: '', bankIFSC: '', bankBranch: '', bankAddress: '',
                 termsConditions: '1. All disputes subject to local jurisdiction.\n2. Goods once sold will not be taken back.\n3. Payment due within 30 days.'
             });
-            this.cache.users = LS.get('users', [{ id: 'U1', name: 'Admin', username: 'admin', password: 'admin123', role: 'admin' }]);
+            this.cache.users = LS.get('users', [{ id: 'U1', name: 'Admin', username: 'admin', password: 'admin123', role: 'admin', company_id: 'C001' }]);
             this.cache.customers = LS.get('customers', []);
             this.cache.products = LS.get('products', []);
             const invs = LS.get('invoices', []);
@@ -145,24 +178,22 @@ const DB = {
             this.cache.challans = LS.get('challans', []);
             this.cache.labors = LS.get('labors', []);
             this.cache.ledger = LS.get('ledger', []);
-            // Show offline banner
-            setTimeout(() => {
-                const b = document.createElement('div');
-                b.id = 'offline-banner';
-                b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#000;text-align:center;font-size:12px;font-weight:600;padding:6px;z-index:9999';
-                b.textContent = '⚠️ Offline / Local Mode — Data saved in browser localStorage (no database connection)';
-                if (!document.getElementById('offline-banner')) document.body.appendChild(b);
-            }, 500);
+            this.cache.materials = LS.get('materials', []);
         }
     },
 
     async fetchAPI(action, data = null) {
+        const u = Auth.getUser();
+        const headers = { 'Content-Type': 'application/json' };
+        if (u && u.company_id) headers['X-Company-ID'] = u.company_id;
+        if (u && u.id) headers['X-User-ID'] = u.id;
+
         const url = `${API_ENDPOINT}?action=${action}`;
-        const options = data ? {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        } : {};
+        const options = {
+            method: data ? 'POST' : 'GET',
+            headers: headers
+        };
+        if (data) options.body = JSON.stringify(data);
         try {
             const res = await fetch(url, options);
             const text = await res.text();
@@ -365,11 +396,59 @@ const DB = {
         if (DB_MODE === 'local') { LS.set('ledger', this.cache.ledger); return { ok: true }; }
         return this.fetchAPI('delete', { table: 'labor_ledger', id });
     },
-    getUsers() { return this.cache.users; },
+
+    // ----- MATERIALS -----
+    getMaterials() { return this.cache.materials; },
+    async addMaterial(m) {
+        m.id = 'M' + Date.now();
+        m.createdAt = nowISO();
+        this.cache.materials.unshift(m);
+        if (DB_MODE === 'local') { LS.set('materials', this.cache.materials); return m; }
+        await this.fetchAPI('add_material', m);
+        return m;
+    },
+    async updateMaterial(id, m) {
+        const idx = this.cache.materials.findIndex(x => x.id === id);
+        if (idx !== -1) this.cache.materials[idx] = { ...this.cache.materials[idx], ...m };
+        if (DB_MODE === 'local') { LS.set('materials', this.cache.materials); return { ok: true }; }
+        m.id = id;
+        return this.fetchAPI('update_material', m);
+    },
+    async deleteMaterial(id) {
+        this.cache.materials = this.cache.materials.filter(x => x.id !== id);
+        if (DB_MODE === 'local') { LS.set('materials', this.cache.materials); return { ok: true }; }
+        return this.fetchAPI('delete', { table: 'materials', id });
+    },
     async saveUsers(users) {
         this.cache.users = users;
         if (DB_MODE === 'local') { LS.set('users', users); return { ok: true }; }
         return this.fetchAPI('save_users', { users });
+    },
+
+    // ----- COMPANIES (TENANTS) -----
+    async getCompanies() {
+        if (DB_MODE === 'local') return LS.get('companies', [{ company_id: 'C001', company_name: 'Main Company', city: 'Local', phone: '000', created_at: nowISO() }]);
+        return this.fetchAPI('get_companies');
+    },
+    async addCompany(data) {
+        if (DB_MODE === 'local') {
+            const list = await this.getCompanies();
+            const newH = { ...data, company_id: 'C' + Date.now(), created_at: nowISO() };
+            list.push(newH);
+            LS.set('companies', list);
+            return { ok: true, company_id: newH.company_id };
+        }
+        return this.fetchAPI('add_company', data);
+    },
+    async updateCompany(id, data) {
+        if (DB_MODE === 'local') {
+            const list = await this.getCompanies();
+            const idx = list.findIndex(h => h.company_id === id);
+            if (idx !== -1) list[idx] = { ...list[idx], ...data };
+            LS.set('companies', list);
+            return { ok: true };
+        }
+        return this.fetchAPI('update_company', { id, ...data });
     },
 
     getMode() { return DB_MODE; },
@@ -384,6 +463,7 @@ const DB = {
             challans: this.cache.challans,
             labors: this.cache.labors,
             ledger: this.cache.ledger,
+            materials: this.cache.materials,
             users: this.cache.users
         };
     }
@@ -392,28 +472,10 @@ const DB = {
 
 // ===== AUTH =====
 const Auth = {
-    getUser() { try { return JSON.parse(sessionStorage.getItem('vew_user') || 'null'); } catch (e) { return null; } },
-    async login(username, password) {
-        // Local mode: check in-memory users
-        if (DB_MODE === 'local') {
-            const users = DB.cache.users || [];
-            const u = users.find(x => x.username === username && x.password === password);
-            if (u) {
-                const user = { id: u.id, name: u.name, username: u.username, role: u.role };
-                sessionStorage.setItem('vew_user', JSON.stringify(user));
-                return { ok: true, user };
-            }
-            return { ok: false, error: 'Invalid username or password' };
-        }
-        const res = await DB.fetchAPI('login', { username, password });
-        if (res.ok) {
-            sessionStorage.setItem('vew_user', JSON.stringify(res.user));
-            return { ok: true, user: res.user };
-        }
-        return { ok: false, error: res.error || 'Login failed' };
-    },
-    logout() { sessionStorage.removeItem('vew_user'); window.location.href = 'index.html'; },
-    require() { const u = this.getUser(); if (!u) { window.location.href = 'index.html'; return null; } return u; }
+    getUser() { return { id: 'U1', name: 'Admin', username: 'admin', role: 'admin', company_id: 'C001' }; },
+    async login(username, password) { return { ok: true, user: this.getUser() }; },
+    logout() { window.location.href = 'index.html'; },
+    require() { return this.getUser(); }
 };
 
 // Rest of utilities (nowISO, fmtCur, etc.) remain same
@@ -466,8 +528,8 @@ function sidebarHTML(activePage) {
         { href: 'challan.html', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: 'Challans' },
         { href: 'material.html', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', label: 'Materials' },
         { href: 'customers.html', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', label: 'Customers' },
-        { href: 'products.html', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', label: 'Products' },
-        { href: 'labor.html', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', label: 'Labor' },
+        { href: 'products.html', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', label: 'Inventory' },
+        { href: 'labor.html', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', label: 'Staff' },
         { href: 'settings.html', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', label: 'Settings' }
     ];
 
@@ -484,7 +546,7 @@ function sidebarHTML(activePage) {
     return `<aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div style="width:38px;height:38px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px">${settings.name.charAt(0)}</div>
-      <div class="logo-text"><div class="company-name">${settings.name}</div><div class="company-sub">Billing System</div></div>
+      <div class="logo-text"><div class="company-name">${settings.name}</div></div>
     </div>
     <nav class="sidebar-nav">${links}</nav>
     <div class="sidebar-footer">

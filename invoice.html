@@ -4,12 +4,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Invoices — Billing System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Invoices | Veranjaneya Billing</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1e3a8a;
+            --primary-light: #eff6ff;
+            --accent-color: #f59e0b;
+            --bg-color: #f8fafc;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+        }
+
+        .invoice-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 30px;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-container {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo-container svg {
+            width: 50px;
+            height: 50px;
+            color: var(--primary-color);
+        }
+
+        .company-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+
+        .company-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .invoice-title-badge {
+            background: var(--accent-color);
+            color: white;
+            display: inline-block;
+            padding: 8px 30px;
+            font-weight: 800;
+            border-radius: 50px;
+            margin-top: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 14px;
+        }
+
+        .inv-items-table th {
+            background: var(--primary-color);
+            color: white;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .inv-total-grand {
+            background: var(--primary-color) !important;
+        }
+
+        .gear-icon {
+            position: absolute;
+            opacity: 0.05;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                min-height: 0 !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            /* Hide sidebar, page content, and all modals except the invoice view */
+            #sidebar-mount,
+            .top-header,
+            .page-body,
+            .no-print,
+            #create-modal {
+                display: none !important;
+            }
+            /* Collapse the layout shell so it adds no height */
+            .app-layout {
+                display: block !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .main-content {
+                display: block !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+            }
+            /* Flatten the view-modal overlay so invoice starts at top of page */
+            #view-modal {
+                position: static !important;
+                background: none !important;
+                overflow: visible !important;
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                height: auto !important;
+                min-height: 0 !important;
+                align-items: flex-start !important;
+                justify-content: flex-start !important;
+            }
+            /* Strip the modal card chrome */
+            #view-modal > .modal {
+                all: unset !important;
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            /* The invoice preview body fills the page */
+            #invoice-preview {
+                all: unset !important;
+                display: block !important;
+                width: 100% !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            /* A4 invoice container: 190mm wide (210mm - 10mm*2 margins), full page height */
+            .invoice-container {
+                width: 190mm !important;
+                min-height: 277mm !important;
+                max-height: 277mm !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                /* Remove screen-only decorations */
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                border: none !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
+            }
+            /* Items section grows to fill space between header and footer */
+            .invoice-body-section {
+                flex-grow: 1 !important;
+                overflow: hidden !important;
+            }
+            /* Compact table for print */
+            .inv-items-table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                font-size: 9pt !important;
+            }
+            .inv-items-table td,
+            .inv-items-table th {
+                font-size: 9pt !important;
+            }
+            /* Force color backgrounds and SVGs to print */
+            svg, svg path,
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -127,6 +317,42 @@
                     <div id="gst-type-badge" style="margin-top:6px"></div>
                 </div>
 
+                <!-- Order & Logistics Section -->
+                <div
+                    style="background:#f9fafb;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px">
+                    <div
+                        style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">
+                        Order & Logistics Details</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Supply Order No</label>
+                            <input type="text" id="f-supply-order" placeholder="e.g. -23/31/2025-26">
+                        </div>
+                        <div class="form-group">
+                            <label>Buyer Order No</label>
+                            <input type="text" id="f-buyer-order" placeholder="e.g. KA/D/Q/-2025-26">
+                        </div>
+                        <div class="form-group">
+                            <label>E-Way Bill No</label>
+                            <input type="text" id="f-eway-bill" placeholder="e.g. 291234567890">
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top:10px">
+                        <div class="form-group">
+                            <label>Payment Mode</label>
+                            <input type="text" id="f-payment-mode" placeholder="e.g. CREDIT, CASH" value="CREDIT">
+                        </div>
+                        <div class="form-group">
+                            <label>Delivery Vehicle No</label>
+                            <input type="text" id="f-vehicle-no" placeholder="e.g. KA-17-M-1234">
+                        </div>
+                        <div class="form-group">
+                            <label>Billing Destination</label>
+                            <input type="text" id="f-destination" placeholder="e.g. HASSAN SP OFFICE">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Items Section -->
                 <div
                     style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">
@@ -137,15 +363,16 @@
                             <tr>
                                 <th style="width:30px">#</th>
                                 <th>Product / Description</th>
+                                <th style="width:80px">Mfr</th>
+                                <th style="width:80px">Batch</th>
+                                <th style="width:80px">Exp.</th>
                                 <th style="width:80px">HSN</th>
                                 <th style="width:60px">Qty</th>
-                                <th style="width:60px">Unit</th>
-                                <th style="width:90px">Rate (₹)</th>
-                                <th style="width:70px">Disc %</th>
-                                <th style="width:60px">GST %</th>
-                                <th style="width:95px">Taxable</th>
-                                <th style="width:85px">GST Amt</th>
-                                <th style="width:95px">Total</th>
+                                <th style="width:80px">MRP (₹)</th>
+                                <th style="width:80px">Rate (₹)</th>
+                                <th style="width:60px">Disc%</th>
+                                <th style="width:60px">GST%</th>
+                                <th style="width:90px">Total</th>
                                 <th style="width:36px"></th>
                             </tr>
                         </thead>
@@ -175,7 +402,8 @@
                     <div class="form-group"><label>Notes</label><input type="text" id="f-notes"
                             placeholder="Additional notes"></div>
                 </div>
-                <div class="form-group"><label>Custom Terms & Conditions (Manual edit)</label><textarea id="f-terms" rows="3"></textarea>
+                <div class="form-group"><label>Custom Terms & Conditions (Manual edit)</label><textarea id="f-terms"
+                        rows="3"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -196,11 +424,13 @@
             <div class="modal-header no-print">
                 <span class="modal-title">Invoice Preview</span>
                 <div style="display:flex;gap:8px;margin-left:auto;align-items:center;">
-                    <select id="bill-type-select" onchange="updateBillType()" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid var(--border);">
-                        <option value="ORIGINAL FOR RECIPIENT">Original</option>
-                        <option value="DUPLICATE FOR TRANSPORTER">Duplicate</option>
-                        <option value="TRIPLICATE FOR SUPPLIER">Triplicate</option>
-                        <option value="COPY">Copy</option>
+                    <select id="f-copy-type" onchange="changeCopyType(this.value)" style="width: auto; height: 30px; font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: white; font-weight: 600; color: var(--text);">
+                        <option value="">Default (No Copy Text)</option>
+                        <option value="ORIGINAL FOR RECIPIENT">ORIGINAL FOR RECIPIENT</option>
+                        <option value="DUPLICATE FOR TRANSPORTER">DUPLICATE FOR TRANSPORTER</option>
+                        <option value="TRIPLICATE FOR ASSESSEE">TRIPLICATE FOR ASSESSEE</option>
+                        <option value="OFFICE COPY">OFFICE COPY</option>
+                        <option value="DUPLICATE">DUPLICATE</option>
                     </select>
                     <button class="btn btn-outline btn-sm" id="print-btn" onclick="printInvoice()"><svg fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
@@ -211,7 +441,7 @@
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>Download PDF</button>
+                        </svg>Print / Save PDF</button>
                     <button class="modal-close" onclick="closeModal('view-modal')"><svg fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -246,6 +476,14 @@
             document.getElementById('f-notes').value = inv ? (inv.notes || '') : '';
             document.getElementById('f-terms').value = inv ? (inv.termsConditions || settings.termsConditions) : settings.termsConditions;
             document.getElementById('f-paid').value = inv ? (inv.paidAmount || 0) : 0;
+
+            // Logistics fields:
+            document.getElementById('f-supply-order').value = inv ? (inv.supplyOrderNo || '') : '';
+            document.getElementById('f-buyer-order').value = inv ? (inv.buyerOrderNo || '') : '';
+            document.getElementById('f-eway-bill').value = inv ? (inv.eWayBill || '') : '';
+            document.getElementById('f-payment-mode').value = inv ? (inv.paymentMode || 'CREDIT') : 'CREDIT';
+            document.getElementById('f-vehicle-no').value = inv ? (inv.vehicleNo || '') : '';
+            document.getElementById('f-destination').value = inv ? (inv.destination || '') : '';
 
             // Populate customer dropdown
             const custSel = document.getElementById('f-customer');
@@ -293,7 +531,7 @@
             const badge = document.getElementById('gst-type-badge');
             badge.innerHTML = currentGSTType === 'inter'
                 ? `<span class="badge badge-info">IGST (Inter-State Supply)</span>`
-                : `<span class="badge badge-success">CGST + SGST (Intra-State Supply)</span>`;
+                : `<span class="badge badge-success">CGST + SGST</span>`;
             recalc();
         }
 
@@ -321,23 +559,20 @@
         </select>
         <input type="text" placeholder="Description" value="${it.name || ''}" oninput="updateItem(${idx},'name',this.value)" style="margin-top:2px">
       </td>
+      <td><input type="text" value="${it.mfr || ''}" oninput="updateItem(${idx},'mfr',this.value)" style="width:70px"></td>
+      <td><input type="text" value="${it.batchNo || ''}" oninput="updateItem(${idx},'batchNo',this.value)" style="width:70px"></td>
+      <td><input type="text" value="${it.expDate || ''}" oninput="updateItem(${idx},'expDate',this.value)" placeholder="MM/YY" style="width:70px"></td>
       <td><input type="text" value="${it.hsnCode || ''}" oninput="updateItem(${idx},'hsnCode',this.value)" style="width:70px"></td>
       <td><input type="number" value="${it.qty || 1}" min="0.001" step="any" oninput="updateItem(${idx},'qty',+this.value)" style="width:55px"></td>
-      <td>
-        <select onchange="updateItem(${idx},'unit',this.value)" style="width:55px">
-          ${['Nos', 'Kg', 'Mtr', 'Set', 'Pcs', 'Ltr', 'Box', 'Pair'].map(u => `<option ${it.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
-        </select>
-      </td>
-      <td><input type="number" value="${it.rate || 0}" min="0" step="any" oninput="updateItem(${idx},'rate',+this.value)" style="width:80px"></td>
+      <td><input type="number" value="${it.mrp || 0}" min="0" step="any" oninput="updateItem(${idx},'mrp',+this.value)" style="width:75px"></td>
+      <td><input type="number" value="${it.rate || 0}" min="0" step="any" oninput="updateItem(${idx},'rate',+this.value)" style="width:75px"></td>
       <td><input type="number" value="${it.discount || 0}" min="0" max="100" step="any" oninput="updateItem(${idx},'discount',+this.value)" style="width:55px"></td>
       <td>
         <select onchange="updateItem(${idx},'gstRate',+this.value)" style="width:55px">
           ${[0, 5, 12, 18, 28].map(r => `<option value="${r}" ${it.gstRate === r ? 'selected' : ''}>${r}%</option>`).join('')}
         </select>
       </td>
-      <td style="text-align:right;font-weight:500" id="taxable-${idx}">${fmtCur(getItemTaxable(it))}</td>
-      <td style="text-align:right" id="gstamt-${idx}">${fmtCur(getItemGST(it))}</td>
-      <td style="text-align:right;font-weight:700;color:var(--accent)" id="total-${idx}">${fmtCur(getItemTotal(it))}</td>
+      <td style="text-align:right;font-weight:700;color:var(--primary-color)" id="total-${idx}">${fmtCur(getItemTotal(it))}</td>
       <td><button onclick="removeItem(${idx})" class="btn btn-ghost btn-sm" style="color:var(--error);padding:4px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></td>
     </tr>`
             ).join('');
@@ -348,7 +583,17 @@
             if (!pid) return;
             const p = DB.getProduct(pid);
             if (!p) return;
-            items[idx] = { ...items[idx], productId: p.id, name: p.name, hsnCode: p.hsnCode || '', unit: p.unit || 'Nos', rate: p.rate || 0, gstRate: p.gstRate || 18 };
+            items[idx] = {
+                ...items[idx],
+                productId: p.id,
+                name: p.name,
+                hsnCode: p.hsnCode || '',
+                unit: p.unit || 'Nos',
+                rate: p.rate || 0,
+                mrp: p.mrp || 0,
+                mfr: p.mfr || '',
+                gstRate: (p.gstRate !== undefined && p.gstRate !== null) ? p.gstRate : 18
+            };
             renderItems(); recalc();
         }
 
@@ -394,6 +639,7 @@
         }
 
         async function saveInvoice() {
+            const editId = document.getElementById('edit-id').value;
             const custId = document.getElementById('f-customer').value;
             if (!custId) { toast('Please select a customer', 'error'); return; }
             if (items.length === 0 || items.every(i => !i.name && !i.rate)) { toast('Add at least one item', 'error'); return; }
@@ -413,15 +659,35 @@
             const grandTotal = subtotal + totalCGST + totalSGST + totalIGST;
 
             const data = {
+                id: editId || 'I' + Date.now(),
                 invoiceNo: document.getElementById('f-invno').value,
                 date: document.getElementById('f-date').value,
                 duedate: document.getElementById('f-duedate').value,
                 paymentStatus: document.getElementById('f-status').value,
                 paidAmount: parseFloat(document.getElementById('f-paid').value) || 0,
-                customerId: custId, customerName: cust ? cust.name : '',
+                customerId: custId,
+                customer: {
+                    name: cust ? cust.name : '',
+                    gstin: document.getElementById('f-cust-gstin').value,
+                    address: document.getElementById('f-cust-addr').value,
+                    stateCode: buyerCode,
+                    supplyOrderNo: document.getElementById('f-supply-order').value,
+                    buyerOrderNo: document.getElementById('f-buyer-order').value,
+                    eWayBill: document.getElementById('f-eway-bill').value,
+                    paymentMode: document.getElementById('f-payment-mode').value,
+                    vehicleNo: document.getElementById('f-vehicle-no').value,
+                    destination: document.getElementById('f-destination').value
+                },
+                customerName: cust ? cust.name : '',
                 customerGSTIN: document.getElementById('f-cust-gstin').value,
                 customerAddress: document.getElementById('f-cust-addr').value,
                 customerStateCode: buyerCode,
+                supplyOrderNo: document.getElementById('f-supply-order').value,
+                buyerOrderNo: document.getElementById('f-buyer-order').value,
+                eWayBill: document.getElementById('f-eway-bill').value,
+                paymentMode: document.getElementById('f-payment-mode').value,
+                vehicleNo: document.getElementById('f-vehicle-no').value,
+                destination: document.getElementById('f-destination').value,
                 items: processedItems, gstType: gt,
                 subtotal, totalCGST, totalSGST, totalIGST,
                 totalGST: totalCGST + totalSGST + totalIGST, grandTotal,
@@ -429,8 +695,7 @@
                 termsConditions: document.getElementById('f-terms').value
             };
 
-            const editId = document.getElementById('edit-id').value;
-            if (editId) { await DB.updateInvoice(editId, data); toast('Invoice updated!'); }
+            if (editId) { data.id = editId; await DB.updateInvoice(editId, data); toast('Invoice updated!'); }
             else { await DB.addInvoice(data); toast('Invoice created!'); }
             closeModal('create-modal');
             renderList();
@@ -478,173 +743,452 @@
         }
 
         function updateBillType() {
-            const label = document.getElementById('bill-type-label');
-            const sel = document.getElementById('bill-type-select');
-            if (label && sel) label.textContent = sel.value;
+            // Bill type removed as per request
         }
 
         function viewInvoice(id) {
             viewingInvoice = DB.getInvoice(id);
             if (!viewingInvoice) return;
             document.getElementById('invoice-preview').innerHTML = buildInvoiceHTML(viewingInvoice);
+            const select = document.getElementById('f-copy-type');
+            if (select) select.value = '';
             openModal('view-modal');
             updateBillType();
+        }
+
+        function changeCopyType(val) {
+            const el = document.getElementById('copy-type-header-label');
+            if (el) {
+                el.textContent = val ? `(${val})` : '';
+            }
         }
 
         function buildInvoiceHTML(inv) {
             try {
                 const s = DB.getSettings();
-            const isInter = inv.gstType === 'inter';
-            const rows = (inv.items || []).map((it, i) => `
-    <tr>
-      <td style="text-align:center">${i + 1}</td>
-      <td>${it.name || ''}</td>
-      <td style="text-align:center">${it.hsnCode || '-'}</td>
-      <td style="text-align:center">${it.qty} ${it.unit || ''}</td>
-      <td style="text-align:right">${fmtCur(it.rate)}</td>
-      <td style="text-align:center">${it.discount || 0}%</td>
-      <td style="text-align:right">${fmtCur(it.taxableAmount || it.taxable)}</td>
-      <td style="text-align:center">${it.gstRate}%</td>
-      ${isInter ? `<td style="text-align:right">${fmtCur(it.igst)}</td>` : `<td style="text-align:right">${fmtCur(it.cgst)}</td><td style="text-align:right">${fmtCur(it.sgst)}</td>`}
-      <td style="text-align:right;font-weight:700">${fmtCur(it.total)}</td>
-    </tr>`).join('');
+                const isInter = inv.gstType === 'inter';
+                
+                // Pull dynamically from Settings:
+                const compName = s.name || 'Your Company Name';
+                
+                const addressParts = [];
+                if (s.address) addressParts.push(s.address);
+                if (s.city) addressParts.push(s.city);
+                if (s.state) addressParts.push(s.state);
+                const compAddress = addressParts.join(', ') || 'Your Address';
+                
+                const compGSTIN = s.gstin || '';
+                const compPhone = s.phone || '';
+                const compStateCode = s.stateCode || '';
+                
+                const bankName = s.bankName || '';
+                const bankAccount = s.bankAccount || '';
+                const bankBranch = s.bankBranch || '';
+                const bankIFSC = s.bankIFSC || '';
+                
+                // Extra logistics fields:
+                const supplyOrderNo = inv.supplyOrderNo || '-';
+                const buyerOrderNo = inv.buyerOrderNo || '-';
+                const eWayBill = inv.eWayBill || '-';
+                const paymentMode = (inv.paymentMode || 'CREDIT').toUpperCase();
+                const vehicleNo = inv.vehicleNo || '-';
+                const destination = inv.destination || '-';
+                
+                const fmtVal = (val) => {
+                    const v = parseFloat(val) || 0;
+                    return v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+                };
 
-            const gstCols = isInter
-                ? `<th>IGST</th>`
-                : `<th>CGST</th><th>SGST</th>`;
-            const billType = document.getElementById('bill-type-select').value;
+                const rows = (inv.items || []).map((it, i) => {
+                    const rate = parseFloat(it.rate) || 0;
+                    const qty = parseFloat(it.qty) || 0;
+                    const amount = getItemTaxable(it);
+                    const hsn = it.hsnCode || '-';
+                    const unit = it.unit || 'Nos';
+                    const gstRateVal = it.gstRate || 0;
+                    const qtyStr = qty.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+                    return `
+                    <tr style="height: 38px;">
+                        <td style="padding: 8px; text-align: center; font-size: 10.5px; border: 1px solid #94a3b8; font-weight: 600; color: #1e293b;">${i + 1}</td>
+                        <td style="padding: 8px; text-align: left; font-size: 10.5px; border: 1px solid #94a3b8;">
+                            <div style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${it.name || ''}</div>
+                            ${it.description ? `<div style="font-size: 8.5px; color: #475569; margin-top: 2px; line-height: 1.3;">${it.description}</div>` : ''}
+                        </td>
+                        <td style="padding: 8px; text-align: center; font-size: 10.5px; border: 1px solid #94a3b8; font-family: monospace; color: #334155;">${hsn}</td>
+                        <td style="padding: 8px; text-align: center; font-size: 10.5px; border: 1px solid #94a3b8; color: #334155; font-weight: 600;">${gstRateVal} %</td>
+                        <td style="padding: 8px; text-align: right; font-size: 10.5px; border: 1px solid #94a3b8; font-weight: 700; color: #0f172a;">${qtyStr} ${unit}</td>
+                        <td style="padding: 8px; text-align: right; font-size: 10.5px; border: 1px solid #94a3b8; font-family: monospace; color: #334155;">${fmtVal(rate)}</td>
+                        <td style="padding: 8px; text-align: center; font-size: 10.5px; border: 1px solid #94a3b8; color: #334155; font-weight: 600;">${unit}</td>
+                        <td style="padding: 8px; text-align: right; font-size: 10.5px; border: 1px solid #94a3b8; font-weight: 700; font-family: monospace; color: #0f172a;">${fmtVal(amount)}</td>
+                    </tr>
+                `;
+                }).join('');
 
-            const badge = inv.paymentStatus === 'paid' ? 'color:#10b981;background:#d1fae5' : inv.paymentStatus === 'partial' ? 'color:#f59e0b;background:#fef3c7' : 'color:#ef4444;background:#fee2e2';
+                // Calculations:
+                const subtotal = inv.subtotal || 0;
+                const cgst = inv.totalCGST || 0;
+                const sgst = inv.totalSGST || 0;
+                const igst = inv.totalIGST || 0;
+                const totalGST = cgst + sgst + igst;
+                const grandTotalRaw = subtotal + totalGST;
+                const grandTotalRounded = Math.round(grandTotalRaw);
+                const roundOff = grandTotalRounded - grandTotalRaw;
+                
+                const words = numWords(grandTotalRounded);
+                const avgGstRate = inv.items && inv.items.length > 0 ? (inv.items[0].gstRate !== undefined ? inv.items[0].gstRate : 18) : 18;
 
-            return `<div id="inv-print-content" style="font-family:'Inter',sans-serif;max-width:820px;margin:0 auto;padding:5px">
-    <div id="bill-type-label" style="text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:8px;color:var(--text-muted);text-transform:uppercase">${billType}</div>
-                    <!-- Header Section -->
-                    <div class="inv-print-header" style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
-                        ${s.showLogo && s.logo ? `<img src="${s.logo}" style="max-height:65px; max-width:250px; margin-bottom:12px;">` : ''}
-                        <div class="inv-company-name" style="font-size:24px; font-weight:800; color:var(--text); margin-bottom:4px;">${s.name}</div>
-                        <div class="inv-company-details" style="font-size:12px; color:var(--text-muted); line-height:1.5;">
-                            ${s.address ? s.address + '<br>' : ''}
-                            ${s.city ? s.city + ', ' : ''} ${s.state || ''}
-                            ${s.gstin ? ' | GSTIN: ' + s.gstin : ''}
-                            ${s.phone ? ' | Ph: ' + s.phone : ''}
+                // Company Logo
+                let logoHTML = '';
+                if (s.showLogo !== false && s.logo) {
+                    logoHTML = `<img src="${s.logo}" style="max-height: 48px; max-width: 140px; object-fit: contain;">`;
+                } else {
+                    logoHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; color: white;">
+                        <div style="width: 32px; height: 32px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #003366; font-size: 14px;">
+                            ${compName.charAt(0)}
                         </div>
-                        <div class="inv-title" style="margin-top:15px; font-size:22px; font-weight:900; color:var(--accent); letter-spacing:2px; border-top:2px solid var(--accent); border-bottom:2px solid var(--accent); padding:4px 30px; display:inline-block; text-transform:uppercase;">TAX INVOICE</div>
+                    </div>`;
+                }
+
+                return `
+                <div id="inv-print-content" class="invoice-container" style="font-family: 'Inter', 'Outfit', sans-serif; width: 794px; height: 1115px; min-height: 1115px; max-height: 1115px; margin: 0 auto; padding: 0; background: white; color: #1e293b; box-sizing: border-box; line-height: 1.2; position: relative; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
+                    
+                    <!-- TOP DOCUMENT COPIES BAR (Photo Style) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 40px; border-bottom: 1px solid #e2e8f0; font-size: 9px; font-weight: 800; color: #475569; text-transform: uppercase; background: #f8fafc; font-family: 'Outfit', sans-serif; height: 26px; box-sizing: border-box; flex-shrink: 0;">
+                        <span>Tax Invoice</span>
+                        <span id="copy-type-header-label" style="color: #003366; font-weight: 900; letter-spacing: 0.5px;"></span>
+                        <span>e-Invoice</span>
+                    </div>
+                    
+                    <!-- MODERN TOP WAVE HEADER -->
+                    <div style="position: relative; width: 100%; height: 125px; overflow: hidden; margin-bottom: 12px; background: white; flex-shrink: 0;">
+                        <!-- Light Blue Back Wave SVG -->
+                        <svg width="800" height="125" viewBox="0 0 800 125" preserveAspectRatio="none" style="position: absolute; top: 0; left: 0; width: 100%; height: 125px; z-index: 1;">
+                            <path d="M 0,0 L 0,120 C 160,120 320,50 480,50 C 620,50 710,95 800,95 L 800,0 Z" fill="#bae6fd" />
+                        </svg>
+                        <!-- Dark Blue Front Wave SVG -->
+                        <svg width="800" height="125" viewBox="0 0 800 125" preserveAspectRatio="none" style="position: absolute; top: 0; left: 0; width: 100%; height: 125px; z-index: 2;">
+                            <path d="M 0,0 L 0,105 C 120,105 270,125 420,65 C 510,25 600,0 680,0 Z" fill="#003366" />
+                        </svg>
+                        
+                        <!-- Header Content inside waves -->
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 125px; z-index: 3; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; box-sizing: border-box;">
+                            <!-- Left: Logo & Company Details -->
+                            <div style="display: flex; align-items: center; gap: 12px; color: white;">
+                                ${logoHTML}
+                                <div style="display: flex; flex-direction: column; text-align: left; max-width: 480px;">
+                                    <span style="font-size: 15px; font-weight: 800; letter-spacing: -0.2px; line-height: 1.1; margin-bottom: 2px;">${compName}</span>
+                                    <span style="font-size: 8.5px; opacity: 0.95; line-height: 1.3; font-weight: 500;">${compAddress}</span>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 8.5px; opacity: 0.95; margin-top: 3px; font-weight: 600;">
+                                        ${compGSTIN ? `<span>GSTIN: <span style="font-family: monospace;">${compGSTIN}</span></span>` : ''}
+                                        ${compPhone ? `<span>Ph: ${compPhone}</span>` : ''}
+                                        ${s.email ? `<span>Email: ${s.email}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Right: Large Clean INVOICE Title -->
+                            <div style="font-size: 28px; font-weight: 900; color: #003366; margin-right: 10px; font-family: 'Outfit', sans-serif; letter-spacing: 0.5px;">
+                                INVOICE
+                            </div>
+                        </div>
                     </div>
 
-    <!-- Parties -->
-    <!-- Parties & Info -->
-    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-        <div style="flex:1;">
-            <div class="inv-party-label">Bill To</div>
-            <div class="inv-party-name" style="font-size:16px;">${inv.customerName || '-'}</div>
-            <div class="inv-party-details">
-                ${inv.customerAddress || ''}<br>
-                ${inv.customerGSTIN ? '<strong>GSTIN:</strong> ' + inv.customerGSTIN : ''}
-            </div>
-        </div>
-        <div style="flex:1; text-align:right;">
-            <div style="display:inline-block; text-align:left;">
-                <div style="font-size:12px; margin-bottom:4px;"><strong>Invoice No:</strong> ${inv.invoiceNo}</div>
-                <div style="font-size:12px; margin-bottom:4px;"><strong>Date:</strong> ${fmtDate(inv.date)}</div>
-                <div style="font-size:12px; margin-bottom:4px;"><strong>Due Date:</strong> ${fmtDate(inv.duedate || inv.date)}</div>
-                <div style="margin-top:8px;"><span style="padding:4px 12px; border-radius:15px; font-size:10px; font-weight:800; ${badge}">${(inv.paymentStatus || 'pending').toUpperCase()}</span></div>
-                <div style="margin-top:8px; font-size:11px; font-weight:700; color:${isInter ? '#3b82f6' : '#10b981'}">${isInter ? 'IGST (Inter-State)' : 'CGST+SGST (Intra-State)'}</div>
-            </div>
-        </div>
-    </div>
+                    <!-- DATE & INVOICE NO ROW (Photo Style) -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; padding: 0 40px; flex-shrink: 0; font-size: 11px; font-weight: 800; color: #003366; font-family: 'Outfit', sans-serif;">
+                        <div>
+                            <span>INVOICE NO: ${inv.invoiceNo}</span>
+                        </div>
+                        <div>
+                            <span>DATE:- ${fmtDate(inv.date)}</span>
+                        </div>
+                    </div>
 
-    <!-- Items Table -->
-    <table class="inv-items-table">
-      <thead><tr>
-        <th style="text-align:center;width:30px">#</th>
-        <th>Description</th>
-        <th>HSN</th>
-        <th style="text-align:center">Qty</th>
-        <th style="text-align:right">Rate</th>
-        <th style="text-align:center">Disc</th>
-        <th style="text-align:right">Taxable</th>
-        <th style="text-align:center">GST%</th>
-        ${gstCols}
-        <th style="text-align:right">Total</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+                    <!-- PARTIES & LOGISTICS GRID (Bordered Table Layout matching Photo) -->
+                    <div style="padding: 0 40px; margin-bottom: 12px; flex-shrink: 0;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; border: 1px solid #94a3b8; text-align: left; line-height: 1.4; color: #1e293b;">
+                            <tr>
+                                <!-- Column 1: BILL TO -->
+                                <td style="width: 38%; border: 1px solid #94a3b8; padding: 8px; vertical-align: top;">
+                                    <strong style="color: #475569; font-size: 8.5px; display: block; margin-bottom: 3px; font-family: 'Outfit', sans-serif;">BILL TO:-</strong>
+                                    <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #0f172a; margin-bottom: 2px;">${inv.customerName || '-'}</div>
+                                    <div style="font-size: 9px; color: #475569; text-transform: uppercase; white-space: pre-line;">${inv.customerAddress || '-'}</div>
+                                    ${inv.customerGSTIN ? `<div style="font-weight: 700; color: #0f172a; margin-top: 5px;">GSTIN: <span style="font-family: monospace; font-size: 10px;">${inv.customerGSTIN}</span></div>` : ''}
+                                </td>
+                                <!-- Column 2: SUPPLY ORDER & BUYER ORDER & EWAY BILL -->
+                                <td style="width: 32%; border: 1px solid #94a3b8; padding: 8px; vertical-align: top;">
+                                    <div style="margin-bottom: 6px;">
+                                        <strong style="color: #475569; font-size: 8px; font-family: 'Outfit', sans-serif;">SUPPLY ORDER NO:-</strong><br>
+                                        <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${supplyOrderNo}</span>
+                                    </div>
+                                    <div style="margin-bottom: 6px;">
+                                        <strong style="color: #475569; font-size: 8px; font-family: 'Outfit', sans-serif;">BUYER ORDER NO:</strong><br>
+                                        <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${buyerOrderNo}</span>
+                                    </div>
+                                    <div>
+                                        <strong style="color: #475569; font-size: 8px; font-family: 'Outfit', sans-serif;">E WAY BILL:-</strong><br>
+                                        <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${eWayBill}</span>
+                                    </div>
+                                </td>
+                                <!-- Column 3: PAYMENT MODE & VEHICLE & DESTINATION -->
+                                <td style="width: 30%; border: 1px solid #94a3b8; padding: 8px; vertical-align: top;">
+                                    <div style="margin-bottom: 6px;">
+                                        <strong style="color: #475569; font-size: 8px; font-family: 'Outfit', sans-serif;">PAYMENT MODE:-</strong><br>
+                                        <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${paymentMode}</span>
+                                    </div>
+                                    <div style="margin-bottom: 6px;">
+                                        <strong style="color: #475569; font-size: 8px; font-family: 'Outfit', sans-serif;">DELIVERY VEHICLE NO:-</strong><br>
+                                        <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${vehicleNo}</span>
+                                    </div>
+                                    <div>
+                                        <strong style="color: #475569; font-size: 8px; font-family: 'Outfit', sans-serif;">BILLING DESTINATION:-</strong><br>
+                                        <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${destination}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
 
-    <!-- Totals -->
-    <div class="inv-total-section">
-      <div class="inv-total-table">
-        <div class="inv-total-row"><span>Subtotal</span><span>${fmtCur(inv.subtotal)}</span></div>
-        ${isInter ? `<div class="inv-total-row"><span>IGST</span><span>${fmtCur(inv.totalIGST)}</span></div>`
-                    : `<div class="inv-total-row"><span>CGST</span><span>${fmtCur(inv.totalCGST)}</span></div><div class="inv-total-row"><span>SGST</span><span>${fmtCur(inv.totalSGST)}</span></div>`}
-        ${inv.paidAmount > 0 ? `<div class="inv-total-row"><span>Paid Amount</span><span style="color:var(--success)">${fmtCur(inv.paidAmount)}</span></div>` : ''}
-        <div class="inv-total-grand"><span>Grand Total</span><span>${fmtCur(inv.grandTotal)}</span></div>
-        ${inv.paidAmount > 0 ? `<div class="inv-total-row" style="font-weight:700;color:var(--error)"><span>Balance Due</span><span>${fmtCur(inv.grandTotal - (inv.paidAmount || 0))}</span></div>` : ''}
-      </div>
-    </div>
+                    <!-- PRODUCTS TABLE CONTAINER (8 Columns, Bordered Grid matching Photo) -->
+                    <div class="invoice-body-section" style="padding: 0 40px; margin-bottom: 0; flex: 1 1 auto; overflow: hidden;">
+                        <table class="inv-items-table" style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 9pt; overflow: hidden; border: 1px solid #94a3b8;">
+                            <thead>
+                                <tr style="background: #003366; color: white; font-weight: 700; height: 32px; font-family: 'Outfit', sans-serif;">
+                                    <th style="padding: 6px; text-align: center; width: 45px; border: 1px solid #94a3b8;">SL.NO.</th>
+                                    <th style="padding: 6px; text-align: left; border: 1px solid #94a3b8;">Description of Goods</th>
+                                    <th style="padding: 6px; text-align: center; width: 75px; border: 1px solid #94a3b8;">HSN/SAC</th>
+                                    <th style="padding: 6px; text-align: center; width: 60px; border: 1px solid #94a3b8;">GST Rate</th>
+                                    <th style="padding: 6px; text-align: center; width: 80px; border: 1px solid #94a3b8;">Quantity</th>
+                                    <th style="padding: 6px; text-align: right; width: 80px; border: 1px solid #94a3b8;">Rate</th>
+                                    <th style="padding: 6px; text-align: center; width: 50px; border: 1px solid #94a3b8;">per</th>
+                                    <th style="padding: 6px; text-align: right; width: 100px; border: 1px solid #94a3b8;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                                <!-- Unified Totals Section matching the photo exactly -->
+                                <tr>
+                                    <!-- Left Column spanning 5 columns: Words & Tax Note -->
+                                    <td colspan="5" style="vertical-align: top; border: 1px solid #94a3b8; text-align: left; padding: 10px; line-height: 1.5; font-size: 9px; color: #1e293b;">
+                                        <div style="margin-bottom: 8px;">
+                                            <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #475569; font-family: 'Outfit', sans-serif;">Total Amount in Words:-</span><br>
+                                            <span style="font-weight: 800; text-transform: uppercase; color: #003366; font-style: italic; font-size: 9.5px;">
+                                                ${words}
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 8.5px; color: #475569; margin-top: 15px;">
+                                            <span style="font-size: 11px; font-weight: 900; border: 1.5px solid #475569; padding: 1px 5px; border-radius: 2px; color: #334155;">INR</span>
+                                            <span style="text-transform: uppercase; font-family: 'Outfit', sans-serif;">[INCLUDING TAX ${avgGstRate}%]</span>
+                                            <span style="font-family: 'Outfit', sans-serif;">E & O.E</span>
+                                        </div>
+                                    </td>
+                                    
+                                    <!-- Right Column spanning 3 columns for calculations -->
+                                    <td colspan="3" style="padding: 0; vertical-align: top; border: 1px solid #94a3b8;">
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; line-height: 1.35; border: none;">
+                                            <tr style="border-bottom: 1px solid #94a3b8;">
+                                                <td style="padding: 6px; color: #475569; text-align: right; font-weight: 800; width: 60%; border-right: 1px solid #94a3b8; font-family: 'Outfit', sans-serif;">TOTAL</td>
+                                                <td style="padding: 6px; text-align: right; font-weight: 700; color: #0f172a; width: 40%; font-family: monospace;">${fmtVal(subtotal)}</td>
+                                            </tr>
+                                            ${isInter ? `
+                                            <tr style="border-bottom: 1px solid #94a3b8;">
+                                                <td style="padding: 6px; color: #475569; text-align: right; font-weight: 800; border-right: 1px solid #94a3b8; font-family: 'Outfit', sans-serif;">IGST ${avgGstRate}%</td>
+                                                <td style="padding: 6px; text-align: right; font-weight: 700; color: #0f172a; font-family: monospace;">${fmtVal(igst)}</td>
+                                            </tr>
+                                            ` : `
+                                            <tr style="border-bottom: 1px solid #94a3b8;">
+                                                <td style="padding: 6px; color: #475569; text-align: right; font-weight: 800; border-right: 1px solid #94a3b8; font-family: 'Outfit', sans-serif;">CGST ${(avgGstRate/2)}%</td>
+                                                <td style="padding: 6px; text-align: right; font-weight: 700; color: #0f172a; font-family: monospace;">${fmtVal(cgst)}</td>
+                                            </tr>
+                                            <tr style="border-bottom: 1px solid #94a3b8;">
+                                                <td style="padding: 6px; color: #475569; text-align: right; font-weight: 800; border-right: 1px solid #94a3b8; font-family: 'Outfit', sans-serif;">SGST ${(avgGstRate/2)}%</td>
+                                                <td style="padding: 6px; text-align: right; font-weight: 700; color: #0f172a; font-family: monospace;">${fmtVal(sgst)}</td>
+                                            </tr>
+                                            `}
+                                            <tr style="border-bottom: 1px solid #94a3b8;">
+                                                <td style="padding: 6px; color: #475569; text-align: right; font-weight: 800; border-right: 1px solid #94a3b8; font-family: 'Outfit', sans-serif;">ROUND OFF</td>
+                                                <td style="padding: 6px; text-align: right; font-weight: 700; color: #0f172a; font-family: monospace;">${fmtVal(roundOff)}</td>
+                                            </tr>
+                                            <tr style="background: #f8fafc; font-size: 11px; font-weight: bold;">
+                                                <td style="padding: 7px 6px; color: #003366; text-align: right; font-weight: 800; border-right: 1px solid #94a3b8; font-family: 'Outfit', sans-serif;">GRAND TOTAL</td>
+                                                <td style="padding: 7px 6px; text-align: right; color: #003366; font-weight: 900; font-family: monospace;">${fmtVal(grandTotalRounded)}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-    <!-- Amount in words -->
-    <div class="inv-amount-words">Amount in words: <strong>${numWords(inv.grandTotal)}</strong></div>
+                    <!-- FOOTER WRAPPER: PUSHED TO BOTTOM OF A4 PAGE -->
+                    <div style="display: flex; flex-direction: column; flex-shrink: 0; width: 100%; margin-top: 0;">
+                        
+                        <!-- COMPANY BANK DETAILS & TERMS (Middle layout) -->
+                        ${s.showBank !== false && bankName ? `
+                        <div style="padding: 0 40px; margin-bottom: 12px; display: flex; gap: 15px;">
+                            <div style="flex: 1.5; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 4px; padding: 6px 12px; text-align: left; font-size: 9px; line-height: 1.4;">
+                                <strong style="font-size: 9.5px; color: #003366; display: block; border-bottom: 1px dashed #cbd5e1; padding-bottom: 2px; margin-bottom: 3px; text-transform: uppercase; font-family: 'Outfit', sans-serif;">Company Bank Details</strong>
+                                <div style="display: grid; grid-template-columns: 80px 1fr; gap: 2px;">
+                                    <span style="color: #64748b;">Bank:</span><span style="font-weight: 700; color: #334155;">${bankName}</span>
+                                    <span style="color: #64748b;">Account No:</span><span style="font-weight: 700; color: #334155;">${bankAccount}</span>
+                                    <span style="color: #64748b;">Branch/IFSC:</span><span style="font-weight: 700; color: #334155;">${bankBranch} ${bankIFSC ? ' - ' + bankIFSC : ''}</span>
+                                </div>
+                            </div>
+                            <div style="flex: 1;"></div>
+                        </div>
+                        ` : ''}
 
-    <!-- Footer Section -->
-    <div class="inv-footer" style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:30px;">
-      <div style="flex:1.5;">
-        ${s.showBank && s.bankName ? `<div class="inv-bank-details" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
-          <div style="font-size:11px; font-weight:800; margin-bottom:8px; color:var(--accent);">BANK ACCOUNT DETAILS</div>
-          <table style="width:100%; border:none; font-size:10px;">
-            <tr><td style="color:var(--text-muted); width:80px; padding:2px 0;">Bank Name:</td><td style="font-weight:700;">${s.bankName}</td></tr>
-            <tr><td style="color:var(--text-muted); padding:2px 0;">Account No:</td><td style="font-weight:700;">${s.bankAccount}</td></tr>
-            <tr><td style="color:var(--text-muted); padding:2px 0;">IFSC Code:</td><td style="font-weight:700;">${s.bankIFSC}</td></tr>
-            ${s.reptid ? `<tr><td style="color:var(--text-muted); padding:2px 0;">REPTID:</td><td style="font-weight:700;">${s.reptid}</td></tr>` : ''}
-          </table>
-        </div>` : ''}
-        ${inv.termsConditions ? `<div style="margin-top:15px; font-size:9px; color:var(--text-muted); line-height:1.4;">
-            <div style="font-weight:800; margin-bottom:4px; color:var(--text);">TERMS & CONDITIONS:</div>
-            ${inv.termsConditions.replace(/\n/g, '<br>')}
-        </div>` : ''}
-      </div>
-      <div style="flex:1; text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
-        <div style="margin-bottom:10px;">
-            ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height:55px; margin-bottom:5px;">` : '<div style="height:55px;"></div>'}
-            <div style="font-size:12px; font-weight:800;">For ${s.name}</div>
-            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Authorized Signatory</div>
-        </div>
-      </div>
-    </div>
+                        <!-- MODERN WAVE FOOTER BLOCK -->
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 0 0 0 40px; margin-top: 8px; min-height: 85px;">
+                            
+                            <!-- Left: Terms and Conditions -->
+                            <div style="flex: 1.2; text-align: left; padding-bottom: 8px; font-size: 8.5px; line-height: 1.35; color: #475569;">
+                                <strong style="font-size: 9px; color:#1e293b; text-decoration: underline; display: block; margin-bottom: 3px; text-transform: uppercase; font-family: 'Outfit', sans-serif;">Term & Condition</strong>
+                                <div style="font-weight: 500;">
+                                    ${s.termsConditions ? s.termsConditions.replace(/\n/g, '<br>') : `
+                                    1. WE DECLARE THAT THIS INVOICE SHOWS THE ACTUAL PRICE OF THE GOODS.<br>
+                                    2. GOODS ONCE SOLD CAN'T TAKE BACK.<br>
+                                    3. SUBJECT TO SHIVAMOGGA JURISDICTION.<br>
+                                    4. INTEREST % IS VALID IF FULL PAYMENT IS CLEARED.<br>
+                                    5. TERMS AND CONDITION ALSO APPLY AS SHOWN IN QUOTATION.<br>
+                                    6. PAYMENT SHOULD CLEAR WITHIN A WEEK FROM BILL DATE.
+                                    `}
+                                </div>
+                            </div>
 
-    <!-- Bottom Selection & Generation Text -->
-    <div style="margin-top:40px; padding-top:15px; border-top:1px dashed #ccc; display:flex; justify-content:space-between; align-items:flex-end;">
-        <div class="inv-copy-selector" style="margin:0; border:none; background:none; padding:0; display:flex; gap:15px;">
-            <div class="inv-copy-box"><span class="inv-copy-check ${billType.includes('ORIGINAL') ? 'checked' : ''}"></span> ORIGINAL</div>
-            <div class="inv-copy-box"><span class="inv-copy-check ${billType.includes('DUPLICATE') ? 'checked' : ''}"></span> DUPLICATE</div>
-            <div class="inv-copy-box"><span class="inv-copy-check ${billType.includes('COPY') || billType.includes('TRIPLICATE') ? 'checked' : ''}"></span> COPY</div>
-        </div>
-        <div style="text-align:right;">
-            ${inv.notes ? `<div style="font-size:10px; color:var(--text-muted); margin-bottom:8px;"><strong>Note:</strong> ${inv.notes}</div>` : ''}
-            <div style="font-size:10px; color:var(--text-muted); font-style:italic;">This is a computer generated invoice. No signature is required.</div>
-        </div>
-    </div>
-  </div>`;
+                            <!-- Center Left: Signature Block -->
+                            <div style="flex: 1; text-align: center; padding-bottom: 8px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 80px; margin-left: 20px; box-sizing: border-box; color: #003366;">
+                                <div style="font-weight: 800; font-size: 9.5px; text-transform: uppercase; margin-bottom: 4px; font-family: 'Outfit', sans-serif;">For ${compName}</div>
+                                ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height: 35px; max-width: 120px; display: block; margin-bottom: 2px;">` : '<div style="height: 35px;"></div>'}
+                                <div style="border-top: 1px solid #003366; width: 160px; padding-top: 4px; font-weight: 800; font-size: 9px; text-transform: uppercase; text-align: center; font-family: 'Outfit', sans-serif;">
+                                    Authorised Signature
+                                </div>
+                            </div>
+
+                            <!-- Right: Blue Curved Wave Block with Contacts (50% Width) -->
+                            <div style="position: relative; width: 50%; height: 85px; overflow: hidden; display: block;">
+                                <!-- Light Blue Back Wave Flipped -->
+                                <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 85px; z-index: 1;">
+                                    <path d="M 400,100 L 400,10 C 250,10 150,100 0,100 Z" fill="#bae6fd" />
+                                </svg>
+                                <!-- Dark Blue Front Wave Flipped -->
+                                <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 85px; z-index: 2;">
+                                    <path d="M 400,100 L 400,0 C 250,0 150,100 0,100 Z" fill="#003366" />
+                                </svg>
+                                
+                                <!-- Thank you & Slogan inside dark blue wave -->
+                                <div style="position: absolute; bottom: 0; right: 0; width: 100%; height: 75px; z-index: 3; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; color: white; padding: 0 40px 0 145px; text-align: right; box-sizing: border-box;">
+                                    <div style="font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 11px; color: white; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Thank You!</div>
+                                    <div style="font-size: 8px; font-weight: 600; color: #bae6fd; letter-spacing: 0.5px; text-transform: uppercase;">Quality & Reliability Delivered</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SOLID BOTTOM BLUE STRIP -->
+                        <div style="background: #003366; height: 8px; width: 100%; border-radius: 0 0 4px 4px; margin-top: 2px;"></div>
+                    </div>
+                </div>
+                `;
             } catch (e) {
                 console.error('Invoice Render Error:', e);
-                return `<div class="alert alert-error" style="padding:20px; color:red;">Error rendering invoice: ${e.message}</div>`;
+                return `<div class="alert alert-error" style="padding: 20px; color: red;">Error rendering invoice: ${e.message}</div>`;
             }
         }
 
         function printInvoice() {
-            window.print();
+            openPrintWindow();
         }
 
         function downloadPDF() {
+            openPrintWindow();
+        }
+
+        function openPrintWindow() {
             if (!viewingInvoice) return;
-            const element = document.getElementById('inv-print-content');
-            const opt = {
-                margin: [5, 5, 5, 5], filename: `${viewingInvoice.invoiceNo}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            html2pdf().set(opt).from(element).save();
-            toast('PDF downloaded!');
+            const invoiceEl = document.getElementById('inv-print-content');
+            if (!invoiceEl) { alert('No invoice loaded. Please open an invoice first.'); return; }
+
+            // Capture the rendered invoice HTML
+            const invoiceHTML = invoiceEl.outerHTML;
+
+            const pw = window.open('', '_blank', 'width=900,height=1200,menubar=no,toolbar=no,location=no,status=no');
+            if (!pw) { alert('Pop-up blocked! Please allow pop-ups for this site and try again.'); return; }
+
+            pw.document.open();
+            pw.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Invoice ${viewingInvoice.invoiceNo || ''}</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    font-family: 'Outfit', 'Inter', sans-serif;
+  }
+  /* Override inline px dimensions with A4 mm dimensions */
+  #inv-print-content {
+    width: 190mm !important;
+    height: 277mm !important;
+    min-height: 277mm !important;
+    max-height: 277mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    margin: 0 auto !important;
+    /* Remove screen chrome */
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    background: white !important;
+    position: relative !important;
+  }
+  /* Items body section stretches between header and footer */
+  .invoice-body-section {
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+  }
+  /* Compact items table */
+  .inv-items-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    font-size: 9pt !important;
+    border-collapse: collapse !important;
+  }
+  .inv-items-table td,
+  .inv-items-table th {
+    font-size: 9pt !important;
+  }
+</style>
+</head>
+<body>
+${invoiceHTML}
+<script>
+  // Auto-print once fonts are loaded
+  document.fonts.ready.then(function() {
+    window.print();
+    window.addEventListener('afterprint', function() { window.close(); });
+    // Fallback: close after 5 seconds if afterprint doesn't fire
+    setTimeout(function() { window.close(); }, 5000);
+  });
+<\/script>
+</body>
+</html>`);
+            pw.document.close();
         }
 
         DB.init().then(() => {
