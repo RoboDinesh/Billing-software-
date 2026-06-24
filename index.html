@@ -6,10 +6,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Login — Billing System</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-        // Direct bypass
-        window.location.href = 'dashboard.html';
-    </script>
     <style>
         *,
         *::before,
@@ -474,7 +470,7 @@
         const AUTH_CODE = 'ADMIN2025';
 
         // Auto-redirect if already logged in
-        if (sessionStorage.getItem('vew_user')) window.location.href = 'dashboard.html';
+        if (LS.get('user')) window.location.href = 'dashboard.html';
 
         document.getElementById('login-form').addEventListener('submit', async function (e) {
             e.preventDefault();

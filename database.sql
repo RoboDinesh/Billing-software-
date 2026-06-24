@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS `products` (
   `unit` varchar(20) DEFAULT 'Nos',
   `price` decimal(10,2) DEFAULT '0.00',
   `gst_rate` decimal(5,2) DEFAULT '18.00',
+  `manufacturer` varchar(255) DEFAULT '',
+  `mrp` decimal(10,2) DEFAULT '0.00',
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

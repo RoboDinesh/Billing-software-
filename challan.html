@@ -210,11 +210,32 @@
             if (!invId) return;
             const inv = DB.getInvoice(invId);
             if (!inv) return;
+            
+            if (items.some(it => it.name && it.name.trim() !== '')) {
+                if (!confirm('This will overwrite your current items. Continue?')) {
+                    document.getElementById('f-invoice').value = ''; 
+                    return;
+                }
+            }
+
             document.getElementById('f-customer').value = inv.customerId || '';
             items = (inv.items || []).map(it => ({ name: it.name, qty: it.qty, unit: it.unit || 'Nos', remarks: '' }));
+            if (items.length === 0) addItem();
             renderItems();
         }
 
+        
+        function onProdSel(index, selectEl) {
+            if(!selectEl.value) return;
+            const p = DB.getProduct(selectEl.value);
+            if(p) {
+                items[index].name = p.name;
+                items[index].unit = p.unit || 'Nos';
+                renderItems();
+            }
+            selectEl.value = '';
+        }
+        
         function addItem() { items.push({ name: '', qty: 1, unit: 'Nos', remarks: '' }); renderItems(); }
         function removeItem(i) { items.splice(i, 1); renderItems(); }
 
@@ -222,7 +243,7 @@
             document.getElementById('items-tbody').innerHTML = items.map((it, i) => `
     <tr>
       <td>${i + 1}</td>
-      <td><input type="text" value="${it.name || ''}" placeholder="Item description" oninput="items[${i}].name=this.value" style="width:100%;min-width:160px"></td>
+      <td><select onchange="onProdSel(${i},this)" style="width:100%;max-width:140px;margin-bottom:4px;"><option value="">-- Load Product --</option>${DB.getProducts().map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select><br><input type="text" value="${it.name || ''}" placeholder="Item description" oninput="items[${i}].name=this.value" style="width:100%;min-width:160px"></td>
       <td><input type="number" value="${it.qty || 1}" min="0.001" step="any" oninput="items[${i}].qty=+this.value" style="width:60px"></td>
       <td><select onchange="items[${i}].unit=this.value" style="width:60px">${['Nos', 'Kg', 'Mtr', 'Set', 'Pcs'].map(u => `<option ${it.unit === u ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
       <td><input type="text" value="${it.remarks || ''}" placeholder="Remarks" oninput="items[${i}].remarks=this.value" style="width:120px"></td>
@@ -231,33 +252,54 @@
         }
 
         async function saveChallan() {
-            const canvas = document.getElementById('sig-canvas');
-            const sigData = canvas ? canvas.toDataURL() : '';
             const custId = document.getElementById('f-customer').value;
-            const cust = custId ? DB.getCustomer(custId) : null;
-            const invId = document.getElementById('f-invoice').value;
-            const inv = invId ? DB.getInvoice(invId) : null;
+            if (!custId) return toast('Please select a customer', 'error');
+            
+            const validItems = items.filter(it => it.name && it.name.trim() !== '');
+            if (validItems.length === 0) return toast('Please add at least one item', 'error');
+            for (let it of validItems) {
+                if (!it.qty || parseFloat(it.qty) <= 0) return toast('Quantity must be greater than 0', 'error');
+            }
 
-            const data = {
-                challanNo: document.getElementById('f-dcno').value,
-                date: document.getElementById('f-date').value,
-                dispatchDate: document.getElementById('f-dispatch').value,
-                invoiceId: invId, invoiceNo: inv ? inv.invoiceNo : '',
-                customerId: custId, customerName: cust ? cust.name : '',
-                customerAddress: cust ? [cust.address, cust.city, cust.state].filter(Boolean).join(', ') : '',
-                vehicleNo: document.getElementById('f-vehicle').value,
-                driverName: document.getElementById('f-driver').value,
-                driverPhone: document.getElementById('f-driver-phone').value,
-                referenceNo: document.getElementById('f-refno').value,
-                items: items,
-                notes: document.getElementById('f-notes').value,
-                signature: sigData
-            };
+            const saveBtn = document.querySelector('#form-modal .modal-footer .btn-primary');
+            const origText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
 
-            const editId = document.getElementById('edit-id').value;
-            if (editId) { await DB.updateChallan(editId, data); toast('Challan updated!'); }
-            else { await DB.addChallan(data); toast('Challan created!'); }
-            closeModal('form-modal'); renderList();
+            try {
+                const canvas = document.getElementById('sig-canvas');
+                const sigData = canvas ? canvas.toDataURL() : '';
+                const cust = custId ? DB.getCustomer(custId) : null;
+                const invId = document.getElementById('f-invoice').value;
+                const inv = invId ? DB.getInvoice(invId) : null;
+
+                const data = {
+                    challanNo: document.getElementById('f-dcno').value,
+                    date: document.getElementById('f-date').value,
+                    dispatchDate: document.getElementById('f-dispatch').value,
+                    invoiceId: invId, invoiceNo: inv ? inv.invoiceNo : '',
+                    customerId: custId, customerName: cust ? cust.name : '',
+                    customerAddress: cust ? [cust.address, cust.city, cust.state].filter(Boolean).join('\n') : '',
+                    customerCity: cust ? cust.city : '',
+                    vehicleNo: document.getElementById('f-vehicle').value,
+                    driverName: document.getElementById('f-driver').value,
+                    driverPhone: document.getElementById('f-driver-phone').value,
+                    referenceNo: document.getElementById('f-refno').value,
+                    items: validItems,
+                    notes: document.getElementById('f-notes').value,
+                    signature: sigData
+                };
+
+                const editId = document.getElementById('edit-id').value;
+                if (editId) { await DB.updateChallan(editId, data); toast('Challan updated!'); }
+                else { await DB.addChallan(data); toast('Challan created!'); }
+                closeModal('form-modal'); renderList();
+            } catch (err) {
+                toast('Error saving challan: ' + err.message, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = origText;
+            }
         }
 
         function renderList() {
@@ -295,7 +337,7 @@
         ─────────────────────────────────────────────── */
         function buildChallanHTML(dc) {
             const s = DB.getSettings();
-            const compName = s.name || 'Your Company Name';
+            const compName = s.name || 'SRI VERANJANEYA ENGINEERING WORKS';
             const addressParts = [];
             if (s.address) addressParts.push(s.address);
             if (s.city) addressParts.push(s.city);
@@ -303,215 +345,135 @@
             const compAddress = addressParts.join(', ') || '';
             const compGSTIN = s.gstin || '';
             const compPhone = s.phone || '';
-            const bankName = s.bankName || '';
-            const bankAccount = s.bankAccount || '';
-            const bankBranch = s.bankBranch || '';
-            const bankIFSC = s.bankIFSC || '';
-
-            // Logo or letter avatar
-            let logoHTML = '';
-            if (s.showLogo !== false && s.logo) {
-                logoHTML = `<img src="${s.logo}" style="max-height:48px;max-width:140px;object-fit:contain;">`;
-            } else {
-                logoHTML = `<div style="width:32px;height:32px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;color:#003366;font-size:14px;">${compName.charAt(0)}</div>`;
-            }
-
-            // Items rows
+            
+            // Items
             const itemRows = (dc.items || []).map((it, i) => `
-                <tr>
-                    <td style="padding:7px 8px;text-align:center;font-size:9.5px;border:1px solid #94a3b8;font-weight:600;color:#1e293b;">${i + 1}</td>
-                    <td style="padding:7px 8px;text-align:left;font-size:9.5px;border:1px solid #94a3b8;font-weight:700;color:#0f172a;text-transform:uppercase;">${it.name || ''}</td>
-                    <td style="padding:7px 8px;text-align:center;font-size:9.5px;border:1px solid #94a3b8;font-weight:700;color:#0f172a;">${parseFloat(it.qty || 1).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</td>
-                    <td style="padding:7px 8px;text-align:center;font-size:9.5px;border:1px solid #94a3b8;color:#334155;">${it.unit || 'Nos'}</td>
-                    <td style="padding:7px 8px;text-align:left;font-size:9.5px;border:1px solid #94a3b8;color:#475569;">${it.remarks || ''}</td>
-                </tr>`).join('');
+                <tr style="height:25px;">
+                    <td style="border:1px solid #000;text-align:center;font-weight:bold;font-size:12px;">${i + 1}</td>
+                    <td style="border:1px solid #000;text-align:center;font-weight:bold;font-size:12px;padding:2px 4px;text-transform:uppercase;">${it.name || ''}</td>
+                    <td style="border:1px solid #000;text-align:center;font-weight:bold;font-size:12px;">${dc.referenceNo || ''}</td>
+                    <td style="border:1px solid #000;text-align:center;font-weight:bold;font-size:12px;">${dc.customerCity || ''}</td>
+                    <td style="border:1px solid #000;text-align:center;font-weight:bold;font-size:12px;">${Number.isInteger(parseFloat(it.qty || 1)) ? parseFloat(it.qty || 1).toString().padStart(2, '0') : parseFloat(it.qty || 1).toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            const totalQty = (dc.items || []).reduce((sum, it) => sum + (parseFloat(it.qty) || 0), 0);
 
             return `
-            <div id="dc-print-content" class="challan-container" style="font-family:'Outfit','Inter',sans-serif;width:794px;height:1115px;min-height:1115px;max-height:1115px;margin:0 auto;padding:0;background:white;color:#1e293b;box-sizing:border-box;line-height:1.2;position:relative;border-radius:4px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border:1px solid #e2e8f0;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;">
-
-                <!-- TOP BAR -->
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 40px;border-bottom:1px solid #e2e8f0;font-size:9px;font-weight:800;color:#475569;text-transform:uppercase;background:#f8fafc;font-family:'Outfit',sans-serif;height:26px;box-sizing:border-box;flex-shrink:0;">
-                    <span>Delivery Challan</span>
-                    <span style="color:#003366;font-weight:900;letter-spacing:0.5px;">NON-TAX DOCUMENT</span>
-                    <span>DC Copy</span>
-                </div>
-
-                <!-- WAVE HEADER (same as invoice) -->
-                <div style="position:relative;width:100%;height:125px;overflow:hidden;background:white;flex-shrink:0;">
-                    <svg width="800" height="125" viewBox="0 0 800 125" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:125px;z-index:1;">
-                        <path d="M 0,0 L 0,120 C 160,120 320,50 480,50 C 620,50 710,95 800,95 L 800,0 Z" fill="#bae6fd"/>
-                    </svg>
-                    <svg width="800" height="125" viewBox="0 0 800 125" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:125px;z-index:2;">
-                        <path d="M 0,0 L 0,105 C 120,105 270,125 420,65 C 510,25 600,0 680,0 Z" fill="#003366"/>
-                    </svg>
-                    <div style="position:absolute;top:0;left:0;width:100%;height:125px;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:0 40px;box-sizing:border-box;">
-                        <div style="display:flex;align-items:center;gap:12px;color:white;">
-                            ${logoHTML}
-                            <div style="display:flex;flex-direction:column;text-align:left;max-width:420px;">
-                                <span style="font-size:15px;font-weight:800;letter-spacing:-0.2px;line-height:1.1;margin-bottom:2px;">${compName}</span>
-                                <span style="font-size:8.5px;opacity:0.95;line-height:1.3;font-weight:500;">${compAddress}</span>
-                                <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:8.5px;opacity:0.95;margin-top:3px;font-weight:600;">
-                                    ${compGSTIN ? `<span>GSTIN: <span style="font-family:monospace;">${compGSTIN}</span></span>` : ''}
-                                    ${compPhone ? `<span>Ph: ${compPhone}</span>` : ''}
-                                    ${s.email ? `<span>Email: ${s.email}</span>` : ''}
-                                </div>
+            <div id="dc-print-content" style="font-family:Arial,sans-serif;width:794px;height:1120px;margin:0 auto;padding:15px;background:white;color:black;box-sizing:border-box;">
+                
+                <!-- OUTER BORDER WRAPPER -->
+                <div style="border:2px solid #000;width:100%;height:100%;display:flex;flex-direction:column;position:relative;">
+                    
+                    <!-- HEADER -->
+                    <div style="text-align:center;padding:15px 15px 5px 15px;position:relative;">
+                        <h1 style="margin:0;font-size:26px;font-weight:bold;color:#4b5563;letter-spacing:1px;text-transform:uppercase;">${compName}</h1>
+                        
+                        <div style="position:absolute;top:15px;left:15px;font-size:10px;text-align:left;line-height:1.4;">
+                            <div style="font-weight:bold;">GSTIN:${compGSTIN}</div>
+                            <div style="margin-top:10px;font-size:9px;">
+                                <div style="display:flex;align-items:center;"><span style="width:100px;">VEW OFFICE COPY</span><div style="width:10px;height:10px;border:1px solid #000;"></div></div>
+                                <div style="display:flex;align-items:center;"><span style="width:100px;">CONSIGNEE COPY</span><div style="width:10px;height:10px;border:1px solid #000;"></div></div>
+                                <div style="display:flex;align-items:center;"><span style="width:100px;">EXTRA COPY</span><div style="width:10px;height:10px;border:1px solid #000;"></div></div>
                             </div>
                         </div>
-                        <div style="font-size:24px;font-weight:900;color:#003366;margin-right:10px;font-family:'Outfit',sans-serif;letter-spacing:0.5px;line-height:1;">
-                            DELIVERY<br><span style="font-size:18px;letter-spacing:2px;">CHALLAN</span>
+
+                        <div style="position:absolute;top:15px;right:15px;font-size:10px;text-align:right;line-height:1.4;">
+                            <div style="font-weight:bold;">KUMARESH N</div>
+                            <div style="font-weight:bold;display:flex;align-items:center;justify-content:flex-end;gap:5px;">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                                PH: ${compPhone.split(',')[0] || ''}
+                            </div>
+                            <div style="font-weight:bold;">${compPhone.split(',')[1] || ''}</div>
+                            <div style="font-weight:bold;">${s.email || ''}</div>
+                        </div>
+                        
+                        <div style="margin-top:25px;font-size:16px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">DELIVERY CHALLAN</div>
+                        <div style="text-align:right;font-size:12px;font-weight:bold;margin-top:5px;">DELIVERY CHALLAN NO:- ${dc.challanNo}</div>
+                    </div>
+
+                    <!-- GRID SECTION -->
+                    <div style="display:flex;border-top:2px solid #000;border-bottom:2px solid #000;">
+                        <!-- LEFT BOX -->
+                        <div style="width:45%;padding:10px;border-right:2px solid #000;">
+                            <div style="font-size:12px;font-weight:bold;margin-bottom:2px;">TO,</div>
+                            <div style="font-size:12px;font-weight:bold;text-transform:uppercase;white-space:pre-line;line-height:1.4;">${dc.customerName || ''}
+${dc.customerAddress || ''}</div>
+                        </div>
+                        <!-- RIGHT GRID -->
+                        <div style="width:55%;display:flex;flex-direction:column;">
+                            <!-- Top row of right grid -->
+                            <div style="display:flex;border-bottom:1px solid #000;text-align:center;font-weight:bold;font-size:11px;background:#f3f4f6;">
+                                <div style="flex:1.5;padding:4px;border-right:1px solid #000;">VEHICLE NUMBER</div>
+                                <div style="flex:1.5;padding:4px;border-right:1px solid #000;">DELIVERY<br>DESTINATION</div>
+                                <div style="flex:1;padding:4px;">DATE</div>
+                            </div>
+                            <div style="display:flex;border-bottom:1px solid #000;text-align:center;font-size:11px;">
+                                <div style="flex:1.5;display:flex;border-right:1px solid #000;">
+                                    <div style="width:40px;border-right:1px solid #000;padding:2px;font-weight:bold;">TRIP<br>1</div>
+                                    <div style="flex:1;padding:2px;display:flex;align-items:center;justify-content:center;text-transform:uppercase;font-weight:bold;">${dc.vehicleNo || ''}</div>
+                                </div>
+                                <div style="flex:1.5;padding:6px;border-right:1px solid #000;text-transform:uppercase;font-weight:bold;display:flex;align-items:center;justify-content:center;">${dc.customerCity || ''}</div>
+                                <div style="flex:1;padding:6px;font-weight:bold;display:flex;align-items:center;justify-content:center;">${fmtDate(dc.date)}</div>
+                            </div>
+                            <!-- Bottom row of right grid -->
+                            <div style="display:flex;border-bottom:1px solid #000;text-align:center;font-weight:bold;font-size:11px;background:#f3f4f6;">
+                                <div style="flex:1.5;padding:4px;border-right:1px solid #000;">DELIVERY CHECK<br>OUT MEMBER<br>NAME</div>
+                                <div style="flex:1.5;padding:4px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;">DRIVER REF NO.</div>
+                                <div style="flex:1;background:#22c55e;"></div>
+                            </div>
+                            <div style="display:flex;text-align:center;font-size:11px;flex:1;">
+                                <div style="flex:1.5;padding:6px;border-right:1px solid #000;text-transform:uppercase;font-weight:bold;display:flex;align-items:center;justify-content:center;">${dc.driverName || '-------'}</div>
+                                <div style="flex:1.5;padding:6px;border-right:1px solid #000;font-weight:bold;display:flex;align-items:center;justify-content:center;">-------</div>
+                                <div style="flex:1;"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- DC NO & DATE ROW -->
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:0 40px;flex-shrink:0;font-size:11px;font-weight:800;color:#003366;font-family:'Outfit',sans-serif;">
-                    <span>DC NO: ${dc.challanNo}</span>
-                    <span>${dc.invoiceNo ? `Ref. Invoice: ${dc.invoiceNo}` : ''}</span>
-                    <span>DATE: ${fmtDate(dc.date)}</span>
-                </div>
-
-                <!-- PARTIES & LOGISTICS GRID -->
-                <div style="padding:0 40px;margin-bottom:10px;flex-shrink:0;">
-                    <table style="width:100%;border-collapse:collapse;font-size:9.5px;border:1px solid #94a3b8;text-align:left;line-height:1.4;color:#1e293b;">
-                        <tr>
-                            <!-- DELIVER TO -->
-                            <td style="width:40%;border:1px solid #94a3b8;padding:8px;vertical-align:top;">
-                                <strong style="color:#475569;font-size:8.5px;display:block;margin-bottom:3px;font-family:'Outfit',sans-serif;">DELIVER TO:-</strong>
-                                <div style="font-weight:800;font-size:11px;text-transform:uppercase;color:#0f172a;margin-bottom:2px;">${dc.customerName || '-'}</div>
-                                <div style="font-size:9px;color:#475569;text-transform:uppercase;white-space:pre-line;">${dc.customerAddress || ''}</div>
-                            </td>
-                            <!-- DISPATCH & VEHICLE -->
-                            <td style="width:32%;border:1px solid #94a3b8;padding:8px;vertical-align:top;">
-                                <div style="margin-bottom:5px;">
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">DISPATCH DATE:-</strong><br>
-                                    <span style="font-weight:700;color:#0f172a;">${fmtDate(dc.dispatchDate)}</span>
-                                </div>
-                                <div style="margin-bottom:5px;">
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">VEHICLE NO:-</strong><br>
-                                    <span style="font-weight:700;color:#0f172a;text-transform:uppercase;">${dc.vehicleNo || '-'}</span>
-                                </div>
-                                <div>
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">REFERENCE NO:-</strong><br>
-                                    <span style="font-weight:700;color:#0f172a;">${dc.referenceNo || '-'}</span>
-                                </div>
-                            </td>
-                            <!-- DRIVER INFO -->
-                            <td style="width:28%;border:1px solid #94a3b8;padding:8px;vertical-align:top;">
-                                <div style="margin-bottom:5px;">
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">DRIVER NAME:-</strong><br>
-                                    <span style="font-weight:700;color:#0f172a;">${dc.driverName || '-'}</span>
-                                </div>
-                                <div style="margin-bottom:5px;">
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">DRIVER PHONE:-</strong><br>
-                                    <span style="font-weight:700;color:#0f172a;">${dc.driverPhone || '-'}</span>
-                                </div>
-                                <div>
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">INVOICE REF:-</strong><br>
-                                    <span style="font-weight:700;color:#0f172a;">${dc.invoiceNo || '-'}</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- ITEMS TABLE (flex-grow) -->
-                <div class="challan-body-section" style="padding:0 40px;flex:1 1 auto;overflow:hidden;">
-                    <table class="challan-items-table" style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:9pt;border:1px solid #94a3b8;">
+                    <!-- ITEMS TABLE -->
+                    <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex:1;">
                         <thead>
-                            <tr style="background:#003366;color:white;font-weight:700;height:30px;font-family:'Outfit',sans-serif;">
-                                <th style="padding:6px;text-align:center;width:45px;border:1px solid #94a3b8;font-size:9pt;">SL.NO.</th>
-                                <th style="padding:6px;text-align:left;border:1px solid #94a3b8;font-size:9pt;">Description of Goods</th>
-                                <th style="padding:6px;text-align:center;width:80px;border:1px solid #94a3b8;font-size:9pt;">Quantity</th>
-                                <th style="padding:6px;text-align:center;width:60px;border:1px solid #94a3b8;font-size:9pt;">Unit</th>
-                                <th style="padding:6px;text-align:left;width:140px;border:1px solid #94a3b8;font-size:9pt;">Remarks</th>
+                            <tr style="background:#f3f4f6;">
+                                <th style="border:1px solid #000;border-top:none;border-left:none;width:50px;padding:4px;font-size:11px;">SL.NO</th>
+                                <th style="border:1px solid #000;border-top:none;padding:4px;font-size:11px;">PRODUCT</th>
+                                <th style="border:1px solid #000;border-top:none;width:120px;padding:4px;font-size:11px;">REF NO.</th>
+                                <th style="border:1px solid #000;border-top:none;width:120px;padding:4px;font-size:11px;">DELIVERY STATION</th>
+                                <th style="border:1px solid #000;border-top:none;border-right:none;width:60px;padding:4px;font-size:11px;">QTY</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${itemRows}
-                            <!-- Total items count row -->
-                            <tr>
-                                <td colspan="2" style="padding:8px;font-size:9px;border:1px solid #94a3b8;color:#475569;font-style:italic;">
-                                    Total Items: <strong style="color:#003366;">${(dc.items || []).length}</strong>
-                                    ${dc.notes ? `&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Note:</strong> ${dc.notes}` : ''}
-                                </td>
-                                <td style="padding:8px;text-align:center;font-size:9.5px;border:1px solid #94a3b8;font-weight:800;color:#003366;">
-                                    ${(dc.items || []).reduce((s, it) => s + (parseFloat(it.qty) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
-                                </td>
-                                <td style="padding:8px;border:1px solid #94a3b8;"></td>
-                                <td style="padding:8px;border:1px solid #94a3b8;font-size:8.5px;color:#475569;font-style:italic;">E &amp; O.E</td>
-                            </tr>
+                            <!-- Empty rows to fill space -->
+                            <tr style="height:100%;"><td style="border-right:1px solid #000;"></td><td style="border-right:1px solid #000;"></td><td style="border-right:1px solid #000;"></td><td style="border-right:1px solid #000;"></td><td></td></tr>
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="border-top:2px solid #000;"></td>
+                                <td style="border:2px solid #000;border-bottom:none;padding:6px;text-align:center;font-weight:bold;font-size:12px;background:#f3f4f6;">TOTAL<br>PRODUCT</td>
+                                <td style="border-top:2px solid #000;border-left:2px solid #000;padding:6px;text-align:center;font-weight:bold;font-size:12px;">${Number.isInteger(totalQty) ? totalQty.toString().padStart(2, '0') : totalQty.toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
                     </table>
-                </div>
 
-                <!-- FOOTER (pushed to bottom by flex) -->
-                <div style="display:flex;flex-direction:column;flex-shrink:0;width:100%;margin-top:0;">
-
-                    <!-- Bank details if available -->
-                    ${s.showBank !== false && bankName ? `
-                    <div style="padding:0 40px;margin-bottom:8px;display:flex;gap:15px;">
-                        <div style="flex:1.5;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:4px;padding:6px 12px;text-align:left;font-size:9px;line-height:1.4;">
-                            <strong style="font-size:9.5px;color:#003366;display:block;border-bottom:1px dashed #cbd5e1;padding-bottom:2px;margin-bottom:3px;text-transform:uppercase;font-family:'Outfit',sans-serif;">Company Bank Details</strong>
-                            <div style="display:grid;grid-template-columns:80px 1fr;gap:2px;">
-                                <span style="color:#64748b;">Bank:</span><span style="font-weight:700;color:#334155;">${bankName}</span>
-                                <span style="color:#64748b;">Account No:</span><span style="font-weight:700;color:#334155;">${bankAccount}</span>
-                                <span style="color:#64748b;">Branch/IFSC:</span><span style="font-weight:700;color:#334155;">${bankBranch}${bankIFSC ? ' - ' + bankIFSC : ''}</span>
-                            </div>
+                    <!-- FOOTER SECTION -->
+                    <div style="display:flex;border-top:2px solid #000;height:120px;">
+                        <div style="width:60%;border-right:1px solid #000;display:flex;flex-direction:column;">
+                            <div style="padding:4px 10px;font-weight:bold;font-size:11px;border-bottom:1px solid #000;">SEAL AND SIGNATURE OF RECEIVER</div>
+                            <div style="padding:4px 10px;font-weight:bold;font-size:11px;border-bottom:1px solid #000;">PH NO:-</div>
+                            <div style="padding:4px 10px;font-weight:bold;font-size:11px;border-bottom:1px solid #000;">RECEIVER <span style="text-decoration:underline;color:#2563eb;">NAME:-</span></div>
+                            <div style="flex:1;"></div>
                         </div>
-                        <div style="flex:1;"></div>
-                    </div>` : ''}
-
-                    <!-- Signature row + wave footer -->
-                    <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 0 0 40px;margin-top:4px;min-height:90px;">
-
-                        <!-- Left: Terms / declaration -->
-                        <div style="flex:1.2;text-align:left;padding-bottom:8px;font-size:8.5px;line-height:1.35;color:#475569;">
-                            <strong style="font-size:9px;color:#1e293b;text-decoration:underline;display:block;margin-bottom:3px;text-transform:uppercase;font-family:'Outfit',sans-serif;">Declaration</strong>
-                            <div style="font-weight:500;">
-                                1. THIS DELIVERY CHALLAN IS NOT A TAX INVOICE.<br>
-                                2. GOODS DISPATCHED AS PER ORDER.<br>
-                                3. PLEASE VERIFY GOODS BEFORE ACCEPTING.<br>
-                                4. SUBJECT TO ${(s.city || 'LOCAL').toUpperCase()} JURISDICTION.
-                            </div>
-                        </div>
-
-                        <!-- Center: Receiver + Authorised sig blocks -->
-                        <div style="flex:1.3;display:flex;gap:20px;justify-content:center;padding-bottom:8px;align-items:flex-end;">
-                            <!-- Receiver signature -->
-                            <div style="text-align:center;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:80px;color:#003366;">
-                                <div style="height:40px;"></div>
-                                <div style="border-top:1px solid #003366;width:130px;padding-top:4px;font-weight:800;font-size:8.5px;text-transform:uppercase;text-align:center;font-family:'Outfit',sans-serif;">
-                                    Receiver's Signature
-                                </div>
-                                <div style="font-size:8px;color:#64748b;">(Name &amp; Date)</div>
-                            </div>
-                            <!-- Authorised signature -->
-                            <div style="text-align:center;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:80px;color:#003366;">
-                                <div style="font-weight:800;font-size:9px;text-transform:uppercase;margin-bottom:4px;font-family:'Outfit',sans-serif;">For ${compName}</div>
-                                ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height:30px;max-width:110px;display:block;margin-bottom:2px;">` : '<div style="height:30px;"></div>'}
-                                <div style="border-top:1px solid #003366;width:140px;padding-top:4px;font-weight:800;font-size:8.5px;text-transform:uppercase;text-align:center;font-family:'Outfit',sans-serif;">
-                                    Authorised Signatory
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right: Blue wave block (same as invoice) -->
-                        <div style="position:relative;width:45%;height:90px;overflow:hidden;display:block;">
-                            <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position:absolute;bottom:0;left:0;width:100%;height:90px;z-index:1;">
-                                <path d="M 400,100 L 400,10 C 250,10 150,100 0,100 Z" fill="#bae6fd"/>
-                            </svg>
-                            <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position:absolute;bottom:0;left:0;width:100%;height:90px;z-index:2;">
-                                <path d="M 400,100 L 400,0 C 250,0 150,100 0,100 Z" fill="#003366"/>
-                            </svg>
-                            <div style="position:absolute;bottom:0;right:0;width:100%;height:80px;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;color:white;padding:0 40px 0 130px;text-align:right;box-sizing:border-box;">
-                                <div style="font-weight:800;font-family:'Outfit',sans-serif;font-size:11px;color:white;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Thank You!</div>
-                                <div style="font-size:8px;font-weight:600;color:#bae6fd;letter-spacing:0.5px;text-transform:uppercase;">Quality &amp; Reliability Delivered</div>
-                            </div>
+                        <div style="width:40%;position:relative;">
+                            ${dc.signature ? `<img src="${dc.signature}" style="position:absolute;bottom:10px;right:10px;max-height:80px;max-width:200px;">` : ''}
                         </div>
                     </div>
+                    
+                    <div style="padding:8px 15px;border-top:1px solid #000;font-size:9.5px;font-weight:bold;background:#f3f4f6;">
+                        <ul style="margin:0;padding-left:15px;list-style-type:disc;">
+                            <li>ENSURE THAT ABOVE DETAILS CONFIRM THAT THE PRODUCT HAS BEEN DELIVERED OR HANDED OVER SAFELY TO RECEIVER. AFTER DELIVERY IT IS THE RESPONSIBILITY OF THE RECEIVER.</li>
+                        </ul>
+                    </div>
 
-                    <!-- Bottom blue strip -->
-                    <div style="background:#003366;height:8px;width:100%;border-radius:0 0 4px 4px;margin-top:2px;"></div>
                 </div>
             </div>`;
         }
@@ -541,13 +503,13 @@
 <title>Delivery Challan ${viewingDC.challanNo || ''}</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4; margin: 10mm; }
+  @page { size: A4; margin: 0; }
   *, *::before, *::after {
     box-sizing: border-box;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  html, body { margin: 0; padding: 0; background: white; font-family: 'Outfit', sans-serif; }
+  html, body { margin: 0; padding: 10mm 0; background: white; font-family: 'Outfit', sans-serif; }
   #dc-print-content {
     width: 190mm !important;
     height: 277mm !important;
@@ -592,11 +554,29 @@ ${html}
             pw.document.close();
         }
 
+        
         DB.init().then(() => {
             document.getElementById('sidebar-mount').innerHTML = sidebarHTML('challan.html');
             initSidebarUser();
             renderList();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('convert') === '1') {
+                const data = localStorage.getItem('convert_to_challan');
+                if (data) {
+                    const inv = JSON.parse(data);
+                    localStorage.removeItem('convert_to_challan');
+                    
+                    // Open form and prepopulate
+                    openForm();
+                    setTimeout(() => {
+                        document.getElementById('f-invoice').value = inv.id;
+                        onInvoiceChange();
+                    }, 500);
+                }
+            }
         });
+        
     </script>
 </body>
 

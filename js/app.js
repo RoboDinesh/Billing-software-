@@ -290,9 +290,26 @@ const DB = {
     },
     getInvoice(id) { return this.cache.invoices.find(x => x.id === id); },
     nextInvoiceNo() {
-        const fy = getFY();
-        const list = this.cache.invoices.filter(x => x.invoiceNo && x.invoiceNo.includes(fy));
-        return `INV/${fy}/${String(list.length + 1).padStart(3, '0')}`;
+        if (this.cache.invoices && this.cache.invoices.length > 0) {
+            const list = [...this.cache.invoices].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            const latest = list[0].invoiceNo;
+            if (latest) {
+                const match = latest.match(/^(.*?)(\d+)$/);
+                if (match) {
+                    return match[1] + String(parseInt(match[2], 10) + 1).padStart(match[2].length, '0');
+                }
+                return latest + '-01';
+            }
+        }
+        return `INV/${getFY()}/001`;
+    },
+    getInvoiceSeries() {
+        const series = new Set();
+        this.cache.invoices.forEach(inv => {
+            const match = (inv.invoiceNo || '').match(/^(.*?)(\d+)$/);
+            if (match) series.add(match[1]);
+        });
+        return Array.from(series).sort();
     },
 
     // ----- QUOTATIONS -----
@@ -319,9 +336,26 @@ const DB = {
     },
     getQuotation(id) { return this.cache.quotations.find(x => x.id === id); },
     nextQuotationNo() {
-        const fy = getFY();
-        const list = this.cache.quotations.filter(x => x.quotationNo && x.quotationNo.includes(fy));
-        return `QT/${fy}/${String(list.length + 1).padStart(3, '0')}`;
+        if (this.cache.quotations && this.cache.quotations.length > 0) {
+            const list = [...this.cache.quotations].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            const latest = list[0].quotationNo;
+            if (latest) {
+                const match = latest.match(/^(.*?)(\d+)$/);
+                if (match) {
+                    return match[1] + String(parseInt(match[2], 10) + 1).padStart(match[2].length, '0');
+                }
+                return latest + '-01';
+            }
+        }
+        return `QT/${getFY()}/001`;
+    },
+    getQuotationSeries() {
+        const series = new Set();
+        this.cache.quotations.forEach(q => {
+            const match = (q.quotationNo || '').match(/^(.*?)(\d+)$/);
+            if (match) series.add(match[1]);
+        });
+        return Array.from(series).sort();
     },
 
     // ----- CHALLANS -----
@@ -472,10 +506,37 @@ const DB = {
 
 // ===== AUTH =====
 const Auth = {
-    getUser() { return { id: 'U1', name: 'Admin', username: 'admin', role: 'admin', company_id: 'C001' }; },
-    async login(username, password) { return { ok: true, user: this.getUser() }; },
-    logout() { window.location.href = 'index.html'; },
-    require() { return this.getUser(); }
+    getUser() { return LS.get('user', null); },
+    async login(username, password) { 
+        try {
+            const res = await DB.fetchAPI('login', { username, password });
+            if (res && res.ok && res.user) {
+                LS.set('user', res.user);
+                return { ok: true, user: res.user };
+            }
+        } catch (e) {
+            console.error('Login API failed:', e);
+        }
+
+        // Fallback to hardcoded admin if API fails or user not found
+        if (username === 'jayanth' && password === 'admin123') {
+            const user = { id: 'U1', name: 'Jayanth', username: 'jayanth', role: 'admin', company_id: 'C001' };
+            LS.set('user', user);
+            return { ok: true, user };
+        }
+        return { ok: false, error: 'Invalid credentials' };
+    },
+    logout() { 
+        LS.set('user', null); 
+        window.location.href = 'index.html'; 
+    },
+    require() { 
+        const u = this.getUser();
+        if (!u && window.location.pathname.indexOf('index.html') === -1 && window.location.pathname !== '/' && !window.location.pathname.endsWith('/')) {
+            window.location.href = 'index.html';
+        }
+        return u;
+    }
 };
 
 // Rest of utilities (nowISO, fmtCur, etc.) remain same

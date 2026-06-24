@@ -219,6 +219,9 @@
                         </svg>
                         <input type="text" id="search-input" placeholder="Search invoices..." oninput="renderList()">
                     </div>
+                    <select id="filter-series" onchange="renderList()" style="width:auto">
+                        <option value="">All Series</option>
+                    </select>
                     <select id="filter-status" onchange="renderList()" style="width:auto">
                         <option value="">All Status</option>
                         <option value="paid">Paid</option>
@@ -247,7 +250,7 @@
                                     <th>Invoice No</th>
                                     <th>Customer</th>
                                     <th>Date</th>
-                                    <th>Due Date</th>
+                                    
                                     <th>Taxable</th>
                                     <th>GST</th>
                                     <th>Grand Total</th>
@@ -277,11 +280,11 @@
             <div class="modal-body">
                 <input type="hidden" id="edit-id">
                 <div class="form-row">
-                    <div class="form-group"><label>Invoice No</label><input type="text" id="f-invno" readonly
-                            style="background:#f9fafb"></div>
+                    <div class="form-group"><label>Invoice No</label><input type="text" id="f-invno"
+                            style="background:#fff"></div>
                     <div class="form-group"><label class="required">Date</label><input type="date" id="f-date" required>
                     </div>
-                    <div class="form-group"><label>Due Date</label><input type="date" id="f-duedate"></div>
+                    
                     <div class="form-group"><label>Payment Status</label>
                         <select id="f-status">
                             <option value="pending">Pending</option>
@@ -312,8 +315,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group"><label>Address</label><input type="text" id="f-cust-addr"
-                            placeholder="Customer address"></div>
+                    <div class="form-group"><label>Address</label><textarea id="f-cust-addr"
+                            placeholder="Customer address" rows="2"></textarea></div>
                     <div id="gst-type-badge" style="margin-top:6px"></div>
                 </div>
 
@@ -471,7 +474,7 @@
             document.getElementById('modal-title').textContent = editId ? 'Edit Invoice' : 'Create Invoice';
             document.getElementById('f-invno').value = inv ? inv.invoiceNo : DB.nextInvoiceNo();
             document.getElementById('f-date').value = inv ? inv.date : today();
-            document.getElementById('f-duedate').value = inv ? inv.duedate : addDays(30);
+            
             document.getElementById('f-status').value = inv ? inv.paymentStatus : 'pending';
             document.getElementById('f-notes').value = inv ? (inv.notes || '') : '';
             document.getElementById('f-terms').value = inv ? (inv.termsConditions || settings.termsConditions) : settings.termsConditions;
@@ -519,7 +522,7 @@
             const c = DB.getCustomer(cid);
             if (!c) return;
             document.getElementById('f-cust-gstin').value = c.gstin || '';
-            document.getElementById('f-cust-addr').value = [c.address, c.city, c.state].filter(Boolean).join(', ');
+            document.getElementById('f-cust-addr').value = [c.address, c.city, c.state].filter(Boolean).join('\n');
             document.getElementById('f-cust-state').value = c.stateCode || '';
             onStateChange();
         }
@@ -656,13 +659,35 @@
                 subtotal += taxable; totalCGST += g.cgst; totalSGST += g.sgst; totalIGST += g.igst;
                 return { ...it, taxableAmount: taxable, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total: taxable + g.total };
             });
+
+            // Auto-add new products to catalog
+            for (let it of processedItems) {
+                if (!it.productId && it.name && it.name.trim() !== '') {
+                    try {
+                        const newProd = await DB.addProduct({
+                            name: it.name.trim(),
+                            mfr: it.mfr || '',
+                            hsnCode: it.hsnCode || '',
+                            unit: it.unit || 'Nos',
+                            rate: it.rate || 0,
+                            mrp: it.mrp || it.rate || 0,
+                            gstRate: it.gstRate !== undefined ? it.gstRate : 18,
+                            stock: 0,
+                            lowStockAlert: 10,
+                            description: ''
+                        });
+                        it.productId = newProd.id;
+                    } catch (e) { console.error('Failed to auto-add product', e); }
+                }
+            }
+
             const grandTotal = subtotal + totalCGST + totalSGST + totalIGST;
 
             const data = {
                 id: editId || 'I' + Date.now(),
                 invoiceNo: document.getElementById('f-invno').value,
                 date: document.getElementById('f-date').value,
-                duedate: document.getElementById('f-duedate').value,
+                
                 paymentStatus: document.getElementById('f-status').value,
                 paidAmount: parseFloat(document.getElementById('f-paid').value) || 0,
                 customerId: custId,
@@ -704,9 +729,22 @@
         function renderList() {
             const search = (document.getElementById('search-input').value || '').toLowerCase();
             const status = document.getElementById('filter-status').value;
+            const seriesSelect = document.getElementById('filter-series');
+            const series = seriesSelect ? seriesSelect.value : '';
+            
+            if (seriesSelect && seriesSelect.options.length <= 1) {
+                const uniqueSeries = DB.getInvoiceSeries();
+                uniqueSeries.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s; opt.textContent = s || 'Default';
+                    seriesSelect.appendChild(opt);
+                });
+            }
+
             let list = DB.getInvoices().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             if (search) list = list.filter(i => (i.invoiceNo || '').toLowerCase().includes(search) || (i.customerName || '').toLowerCase().includes(search));
             if (status) list = list.filter(i => i.paymentStatus === status);
+            if (series) list = list.filter(i => (i.invoiceNo || '').startsWith(series));
 
             document.getElementById('invoice-count').textContent = `${list.length} invoice${list.length !== 1 ? 's' : ''}`;
             const tbody = document.getElementById('invoice-tbody');
@@ -721,7 +759,7 @@
       <td><strong style="color:var(--accent)">${inv.invoiceNo}</strong></td>
       <td>${inv.customerName || '-'}</td>
       <td>${fmtDate(inv.date)}</td>
-      <td>${fmtDate(inv.duedate || inv.date)}</td>
+      <td>${fmtDate(inv.date)}</td>
       <td>${fmtCur(inv.subtotal)}</td>
       <td>${fmtCur(inv.totalGST || (inv.grandTotal - inv.subtotal))}</td>
       <td><strong>${fmtCur(inv.grandTotal)}</strong></td>
@@ -972,7 +1010,7 @@
                                     <td colspan="5" style="vertical-align: top; border: 1px solid #94a3b8; text-align: left; padding: 10px; line-height: 1.5; font-size: 9px; color: #1e293b;">
                                         <div style="margin-bottom: 8px;">
                                             <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #475569; font-family: 'Outfit', sans-serif;">Total Amount in Words:-</span><br>
-                                            <span style="font-weight: 800; text-transform: uppercase; color: #003366; font-style: italic; font-size: 9.5px;">
+                                            <span style="font-weight: 800; text-transform: uppercase; color: #003366; font-size: 9.5px;">
                                                 ${words}
                                             </span>
                                         </div>
@@ -1038,48 +1076,46 @@
                         </div>
                         ` : ''}
 
-                        <!-- MODERN WAVE FOOTER BLOCK -->
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 0 0 0 40px; margin-top: 8px; min-height: 85px;">
-                            
-                            <!-- Left: Terms and Conditions -->
-                            <div style="flex: 1.2; text-align: left; padding-bottom: 8px; font-size: 8.5px; line-height: 1.35; color: #475569;">
-                                <strong style="font-size: 9px; color:#1e293b; text-decoration: underline; display: block; margin-bottom: 3px; text-transform: uppercase; font-family: 'Outfit', sans-serif;">Term & Condition</strong>
-                                <div style="font-weight: 500;">
-                                    ${s.termsConditions ? s.termsConditions.replace(/\n/g, '<br>') : `
-                                    1. WE DECLARE THAT THIS INVOICE SHOWS THE ACTUAL PRICE OF THE GOODS.<br>
-                                    2. GOODS ONCE SOLD CAN'T TAKE BACK.<br>
-                                    3. SUBJECT TO SHIVAMOGGA JURISDICTION.<br>
-                                    4. INTEREST % IS VALID IF FULL PAYMENT IS CLEARED.<br>
-                                    5. TERMS AND CONDITION ALSO APPLY AS SHOWN IN QUOTATION.<br>
-                                    6. PAYMENT SHOULD CLEAR WITHIN A WEEK FROM BILL DATE.
-                                    `}
+                        <!-- TERMS AND CONDITIONS -->
+                        <div style="padding: 0 40px; margin-bottom: 8px; font-size: 8.5px; line-height: 1.35; color: #475569;">
+                            <strong style="font-size: 9px; color:#1e293b; text-decoration: underline; display: block; margin-bottom: 3px; text-transform: uppercase; font-family: 'Outfit', sans-serif;">Term & Condition</strong>
+                            <div style="font-weight: 500;">
+                                ${s.termsConditions ? s.termsConditions.replace(/\n/g, '<br>') : `
+                                1. WE DECLARE THAT THIS INVOICE SHOWS THE ACTUAL PRICE OF THE GOODS.<br>
+                                2. GOODS ONCE SOLD CAN'T TAKE BACK.<br>
+                                3. SUBJECT TO SHIVAMOGGA JURISDICTION.<br>
+                                4. INTEREST % IS VALID IF FULL PAYMENT IS CLEARED.<br>
+                                5. TERMS AND CONDITION ALSO APPLY AS SHOWN IN QUOTATION.<br>
+                                6. PAYMENT SHOULD CLEAR WITHIN A WEEK FROM BILL DATE.
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- BOTTOM FOOTER AREA (Bank Details & Signature) -->
+                        <div style="display: flex; min-height: 100px; background: white; margin-top: auto; overflow: hidden; position: relative;">
+                            <!-- Wave Background across the whole footer, starting high on left, dipping low on right -->
+                            <svg width="800" height="100" viewBox="0 0 800 100" preserveAspectRatio="none" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 100px; z-index: 1;">
+                                <path d="M 0,100 L 0,20 C 300,20 500,100 800,100 Z" fill="#bae6fd" />
+                                <path d="M 0,100 L 0,40 C 300,40 500,100 800,100 Z" fill="#003366" />
+                            </svg>
+
+                            <!-- Left: Bank Details (60% Width) -->
+                            <div style="width: 60%; padding: 10px 20px 10px 30px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; z-index: 2;">
+                                <div style="font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 10px; text-transform: uppercase; color: #bae6fd; letter-spacing: 0.5px; margin-bottom: 4px;">Bank Details</div>
+                                <div style="display: grid; grid-template-columns: 80px 1fr; gap: 2px 8px; font-size: 9px; color: white;">
+                                    <div style="font-weight: 600; opacity: 0.9;">Bank Name</div><div>${s.bankName || '-'}</div>
+                                    <div style="font-weight: 600; opacity: 0.9;">Account No</div><div style="font-family: monospace; font-size: 10px;">${s.accountNo || '-'}</div>
+                                    <div style="font-weight: 600; opacity: 0.9;">IFSC Code</div><div style="font-family: monospace; font-size: 10px;">${s.ifscCode || '-'}</div>
+                                    <div style="font-weight: 600; opacity: 0.9;">Branch</div><div>${s.branch || '-'}</div>
                                 </div>
                             </div>
 
-                            <!-- Center Left: Signature Block -->
-                            <div style="flex: 1; text-align: center; padding-bottom: 8px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 80px; margin-left: 20px; box-sizing: border-box; color: #003366;">
+                            <!-- Right: Signature Block (40% Width) -->
+                            <div style="width: 40%; text-align: center; padding: 10px 30px 10px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; z-index: 2; color: #003366;">
                                 <div style="font-weight: 800; font-size: 9.5px; text-transform: uppercase; margin-bottom: 4px; font-family: 'Outfit', sans-serif;">For ${compName}</div>
-                                ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height: 35px; max-width: 120px; display: block; margin-bottom: 2px;">` : '<div style="height: 35px;"></div>'}
-                                <div style="border-top: 1px solid #003366; width: 160px; padding-top: 4px; font-weight: 800; font-size: 9px; text-transform: uppercase; text-align: center; font-family: 'Outfit', sans-serif;">
+                                ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height: 40px; max-width: 140px; display: block; margin-bottom: 4px;">` : '<div style="height: 40px;"></div>'}
+                                <div style="border-top: 1px solid #003366; width: 140px; padding-top: 4px; font-weight: 800; font-size: 9px; text-transform: uppercase; text-align: center; font-family: 'Outfit', sans-serif;">
                                     Authorised Signature
-                                </div>
-                            </div>
-
-                            <!-- Right: Blue Curved Wave Block with Contacts (50% Width) -->
-                            <div style="position: relative; width: 50%; height: 85px; overflow: hidden; display: block;">
-                                <!-- Light Blue Back Wave Flipped -->
-                                <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 85px; z-index: 1;">
-                                    <path d="M 400,100 L 400,10 C 250,10 150,100 0,100 Z" fill="#bae6fd" />
-                                </svg>
-                                <!-- Dark Blue Front Wave Flipped -->
-                                <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 85px; z-index: 2;">
-                                    <path d="M 400,100 L 400,0 C 250,0 150,100 0,100 Z" fill="#003366" />
-                                </svg>
-                                
-                                <!-- Thank you & Slogan inside dark blue wave -->
-                                <div style="position: absolute; bottom: 0; right: 0; width: 100%; height: 75px; z-index: 3; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; color: white; padding: 0 40px 0 145px; text-align: right; box-sizing: border-box;">
-                                    <div style="font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 11px; color: white; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Thank You!</div>
-                                    <div style="font-size: 8px; font-weight: 600; color: #bae6fd; letter-spacing: 0.5px; text-transform: uppercase;">Quality & Reliability Delivered</div>
                                 </div>
                             </div>
                         </div>
@@ -1095,6 +1131,14 @@
             }
         }
 
+        
+        function convertToChallan() {
+            if (!viewingInvoice) return;
+            // Save viewingInvoice to localStorage temporarily to pass it to challan.html
+            localStorage.setItem('convert_to_challan', JSON.stringify(viewingInvoice));
+            window.location.href = 'challan.html?convert=1';
+        }
+        
         function printInvoice() {
             openPrintWindow();
         }
@@ -1124,7 +1168,7 @@
 <style>
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 0;
   }
   *, *::before, *::after {
     box-sizing: border-box;
@@ -1133,7 +1177,7 @@
   }
   html, body {
     margin: 0;
-    padding: 0;
+    padding: 10mm 0;
     background: white;
     font-family: 'Outfit', 'Inter', sans-serif;
   }

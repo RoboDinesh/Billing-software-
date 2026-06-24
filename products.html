@@ -26,12 +26,7 @@
                         </svg>
                         <input type="text" id="search-input" placeholder="Search products..." oninput="renderList()">
                     </div>
-                    <button class="btn btn-outline" onclick="resetToEngineeringDefaults()" style="border-color: var(--error); color: var(--error);">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Reset to Engineering Defaults
-                    </button>
+
                     <button class="btn btn-primary" onclick="openForm()">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -182,19 +177,6 @@
                 await DB.addProduct(p);
             }
             toast('Default products added!'); renderList();
-        }
-
-        async function resetToEngineeringDefaults() {
-            if (!confirm('Are you sure you want to delete all existing products and load the engineering/road safety defaults? This cannot be undone.')) return;
-            const allProducts = DB.getProducts();
-            for (const p of allProducts) {
-                await DB.deleteProduct(p.id);
-            }
-            for (const p of DEFAULT_PRODUCTS) {
-                await DB.addProduct(p);
-            }
-            toast('Inventory reset to Engineering Defaults!');
-            renderList();
         }
 
         function openForm(editId = null) {

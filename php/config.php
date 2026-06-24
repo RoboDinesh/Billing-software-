@@ -5,10 +5,9 @@ ini_set('display_errors', 0); // Hide raw errors from output to prevent JSON par
 // Update these values with your Hostinger MySQL credentials
 
 define('DB_HOST', 'localhost');
-define('DB_USER', 'u123456789_admin'); // Replace with your MySQL Username
-define('DB_PASS', 'your_password');     // Replace with your MySQL Password
-define('DB_NAME', 'u123456789_billing'); // Replace with your MySQL Database Name
-
+define('DB_USER', 'u242728356_vera'); // Replace with your MySQL Username
+define('DB_PASS', 'Jayanth@9945389807');     // Replace with your MySQL Password
+define('DB_NAME', 'u242728356_veraDB'); // Replace with your MySQL Database Name
 function get_db_connection() {
     try {
         $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);

@@ -26,6 +26,9 @@
                         </svg>
                         <input type="text" id="search-input" placeholder="Search quotations..." oninput="renderList()">
                     </div>
+                    <select id="filter-series" onchange="renderList()" style="width:auto">
+                        <option value="">All Series</option>
+                    </select>
                     <button class="btn btn-primary" onclick="openCreate()">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -45,7 +48,7 @@
                                     <th>Quotation No</th>
                                     <th>Customer</th>
                                     <th>Date</th>
-                                    <th>Valid Until</th>
+                                    
                                     <th>Amount</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -73,10 +76,12 @@
             <div class="modal-body">
                 <input type="hidden" id="edit-id">
                 <div class="form-row">
-                    <div class="form-group"><label>Quotation No</label><input type="text" id="f-qno" readonly
-                            style="background:#f9fafb"></div>
+                    <div class="form-group"><label>Quotation No</label><input type="text" id="f-qno"
+                            style="background:#fff"></div>
                     <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
-                    <div class="form-group"><label>Valid Until</label><input type="date" id="f-valid"></div>
+                    <div class="form-group"><label>Copy Type</label><select id="f-copy-type"><option value="Customer Copy">Customer Copy</option><option value="Office Copy">Office Copy</option><option value="Original for Recipient">Original</option><option value="Duplicate Copy">Duplicate</option></select></div>
+                    <div class="form-group"><label>Copy Type</label><select id="f-copy-type"><option value="Customer Copy">Customer Copy</option><option value="Office Copy">Office Copy</option><option value="Original for Recipient">Original</option><option value="Duplicate Copy">Duplicate</option></select></div>
+                    
                 </div>
 
                 <!-- Customer Section -->
@@ -97,8 +102,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group"><label>Address</label><input type="text" id="f-caddr"
-                            placeholder="Customer address"></div>
+                    <div class="form-group"><label>Address</label><textarea id="f-caddr"
+                            placeholder="Customer address" rows="2"></textarea></div>
                     <div id="gst-badge" style="margin-top:5px"></div>
                 </div>
 
@@ -205,7 +210,7 @@
             document.getElementById('modal-title').textContent = editId ? 'Edit Quotation' : 'Create Quotation';
             document.getElementById('f-qno').value = q ? q.quotationNo : DB.nextQuotationNo();
             document.getElementById('f-date').value = q ? q.date : today();
-            document.getElementById('f-valid').value = q ? q.validUntil : addDays(30);
+            
             document.getElementById('f-notes').value = q ? (q.notes || '') : '';
             document.getElementById('f-terms').value = q ? (q.termsConditions || s.termsConditions) : s.termsConditions;
 
@@ -234,7 +239,7 @@
             const c = DB.getCustomer(document.getElementById('f-customer').value);
             if (!c) return;
             document.getElementById('f-cgstin').value = c.gstin || '';
-            document.getElementById('f-caddr').value = [c.address, c.city, c.state].filter(Boolean).join(', ');
+            document.getElementById('f-caddr').value = [c.address, c.city, c.state].filter(Boolean).join('\n');
             document.getElementById('f-cstate').value = c.stateCode || '';
             onStateChange();
         }
@@ -261,10 +266,7 @@
     <tr>
       <td>${i + 1}</td>
       <td>
-        <select onchange="onProdSel(${i},this)" style="width:100%;min-width:150px">
-          <option value="">-- Select --</option>
-          ${prods.map(p => `<option value="${p.id}" ${it.productId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
-        </select>
+        
         <input type="text" value="${it.name || ''}" placeholder="Description" oninput="updItem(${i},'name',this.value)" style="margin-top:2px">
       </td>
       <td><input type="text" value="${it.hsnCode || ''}" oninput="updItem(${i},'hsnCode',this.value)" style="width:65px"></td>
@@ -342,7 +344,7 @@
             const data = {
                 quotationNo: document.getElementById('f-qno').value,
                 date: document.getElementById('f-date').value,
-                validUntil: document.getElementById('f-valid').value,
+                
                 customerId: custId, customerName: cust ? cust.name : '',
                 customerGSTIN: document.getElementById('f-cgstin').value,
                 customerAddress: document.getElementById('f-caddr').value,
@@ -362,8 +364,21 @@
 
         function renderList() {
             const search = (document.getElementById('search-input').value || '').toLowerCase();
+            const seriesSelect = document.getElementById('filter-series');
+            const series = seriesSelect ? seriesSelect.value : '';
+            
+            if (seriesSelect && seriesSelect.options.length <= 1) {
+                const uniqueSeries = DB.getQuotationSeries();
+                uniqueSeries.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s; opt.textContent = s || 'Default';
+                    seriesSelect.appendChild(opt);
+                });
+            }
+
             let list = DB.getQuotations().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             if (search) list = list.filter(q => (q.quotationNo || '').toLowerCase().includes(search) || (q.customerName || '').toLowerCase().includes(search));
+            if (series) list = list.filter(q => (q.quotationNo || '').startsWith(series));
             document.getElementById('q-count').textContent = `${list.length} quotation${list.length !== 1 ? 's' : ''}`;
             const tbody = document.getElementById('q-tbody');
             if (list.length === 0) {
@@ -379,7 +394,7 @@
       <td><strong style="color:var(--accent)">${q.quotationNo}</strong></td>
       <td>${q.customerName || '-'}</td>
       <td>${fmtDate(q.date)}</td>
-      <td>${fmtDate(q.validUntil)}</td>
+      
       <td><strong>${fmtCur(q.grandTotal)}</strong></td>
       <td><span class="badge ${badge}">${lbl}</span></td>
       <td>
@@ -470,34 +485,26 @@
                 <!-- TOP BAR -->
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 40px;border-bottom:1px solid #e2e8f0;font-size:9px;font-weight:800;color:#475569;text-transform:uppercase;background:#f8fafc;font-family:'Outfit',sans-serif;height:26px;box-sizing:border-box;flex-shrink:0;">
                     <span>Quotation</span>
-                    <span style="color:#003366;font-weight:900;letter-spacing:0.5px;">NOT A TAX DOCUMENT</span>
-                    <span>Customer Copy</span>
+                    
+                    <span>${copyType}</span>
                 </div>
 
-                <!-- WAVE HEADER (identical to invoice) -->
-                <div style="position:relative;width:100%;height:125px;overflow:hidden;background:white;flex-shrink:0;">
-                    <svg width="800" height="125" viewBox="0 0 800 125" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:125px;z-index:1;">
-                        <path d="M 0,0 L 0,120 C 160,120 320,50 480,50 C 620,50 710,95 800,95 L 800,0 Z" fill="#bae6fd"/>
-                    </svg>
-                    <svg width="800" height="125" viewBox="0 0 800 125" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:125px;z-index:2;">
-                        <path d="M 0,0 L 0,105 C 120,105 270,125 420,65 C 510,25 600,0 680,0 Z" fill="#003366"/>
-                    </svg>
-                    <div style="position:absolute;top:0;left:0;width:100%;height:125px;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:0 40px;box-sizing:border-box;">
-                        <div style="display:flex;align-items:center;gap:12px;color:white;">
-                            ${logoHTML}
-                            <div style="display:flex;flex-direction:column;text-align:left;max-width:480px;">
-                                <span style="font-size:15px;font-weight:800;letter-spacing:-0.2px;line-height:1.1;margin-bottom:2px;">${compName}</span>
-                                <span style="font-size:8.5px;opacity:0.95;line-height:1.3;font-weight:500;">${compAddress}</span>
-                                <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:8.5px;opacity:0.95;margin-top:3px;font-weight:600;">
-                                    ${compGSTIN ? `<span>GSTIN: <span style="font-family:monospace;">${compGSTIN}</span></span>` : ''}
-                                    ${compPhone ? `<span>Ph: ${compPhone}</span>` : ''}
-                                    ${s.email ? `<span>Email: ${s.email}</span>` : ''}
-                                </div>
+                <!-- SOLID HEADER -->
+                <div style="width:100%;background:#e0f2fe;color:#0369a1;display:flex;justify-content:space-between;align-items:center;padding:25px 40px;box-sizing:border-box;flex-shrink:0;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        ${logoHTML}
+                        <div style="display:flex;flex-direction:column;text-align:left;max-width:480px;">
+                            <span style="font-size:16px;font-weight:800;letter-spacing:-0.2px;line-height:1.1;margin-bottom:2px;">${compName}</span>
+                            <span style="font-size:9.5px;opacity:0.95;line-height:1.3;font-weight:500;">${compAddress}</span>
+                            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:9px;opacity:0.95;margin-top:4px;font-weight:600;color:#0284c7;">
+                                ${compGSTIN ? `<span>GSTIN: <span style="font-family:monospace;color:#0369a1;">${compGSTIN}</span></span>` : ''}
+                                ${compPhone ? `<span>Ph: <span style="color:#0369a1;">${compPhone}</span></span>` : ''}
+                                ${s.email ? `<span>Email: <span style="color:#0369a1;">${s.email}</span></span>` : ''}
                             </div>
                         </div>
-                        <div style="font-size:28px;font-weight:900;color:#003366;margin-right:10px;font-family:'Outfit',sans-serif;letter-spacing:0.5px;">
-                            QUOTATION
-                        </div>
+                    </div>
+                    <div style="font-size:28px;font-weight:900;color:#0369a1;font-family:'Outfit',sans-serif;letter-spacing:1px;border-bottom:2px solid #3b82f6;padding-bottom:4px;">
+                        QUOTATION
                     </div>
                 </div>
 
@@ -505,7 +512,7 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:0 40px;flex-shrink:0;font-size:11px;font-weight:800;color:#003366;font-family:'Outfit',sans-serif;">
                     <span>QUOTATION NO: ${q.quotationNo}</span>
                     <span>DATE: ${fmtDate(q.date)}</span>
-                    <span style="color:#e11d48;">VALID UNTIL: ${fmtDate(q.validUntil)}</span>
+                    
                 </div>
 
                 <!-- PARTIES GRID (Bill To + Quotation Details) -->
@@ -530,8 +537,7 @@
                                     <span style="font-weight:700;color:#0f172a;">${fmtDate(q.date)}</span>
                                 </div>
                                 <div>
-                                    <strong style="color:#475569;font-size:8px;font-family:'Outfit',sans-serif;">VALID UNTIL:-</strong><br>
-                                    <span style="font-weight:700;color:#e11d48;">${fmtDate(q.validUntil)}</span>
+                                    
                                 </div>
                             </td>
                             <!-- COMPANY INFO (GST type, supply state) -->
@@ -557,7 +563,7 @@
                 <div class="quotation-body-section" style="padding:0 40px;flex:1 1 auto;overflow:hidden;">
                     <table class="quotation-items-table" style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:9pt;border:1px solid #94a3b8;">
                         <thead>
-                            <tr style="background:#003366;color:white;font-weight:700;height:30px;font-family:'Outfit',sans-serif;">
+                            <tr style="background:#003366;color:#0369a1;font-weight:700;height:30px;font-family:'Outfit',sans-serif;">
                                 <th style="padding:5px 6px;text-align:center;width:38px;border:1px solid #94a3b8;font-size:9pt;">SL</th>
                                 <th style="padding:5px 6px;text-align:left;border:1px solid #94a3b8;font-size:9pt;">Description of Goods</th>
                                 <th style="padding:5px 6px;text-align:center;width:62px;border:1px solid #94a3b8;font-size:9pt;">HSN/SAC</th>
@@ -577,7 +583,7 @@
                                 <td colspan="5" style="vertical-align:top;border:1px solid #94a3b8;text-align:left;padding:8px;line-height:1.5;font-size:9px;color:#1e293b;">
                                     <div style="margin-bottom:6px;">
                                         <span style="font-size:8.5px;font-weight:800;text-transform:uppercase;color:#475569;font-family:'Outfit',sans-serif;">Total Amount in Words:-</span><br>
-                                        <span style="font-weight:800;text-transform:uppercase;color:#003366;font-style:italic;font-size:9.5px;">${words}</span>
+                                        <span style="font-weight:800;text-transform:uppercase;color:#003366;font-size:9.5px;">${words}</span>
                                     </div>
                                     <div style="display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:8.5px;color:#475569;margin-top:10px;">
                                         <span style="font-size:11px;font-weight:900;border:1.5px solid #475569;padding:1px 5px;border-radius:2px;color:#334155;">INR</span>
@@ -637,12 +643,11 @@
                         <div style="flex:1;"></div>
                     </div>` : ''}
 
-                    <!-- Terms + Signatures + Wave footer -->
-                    <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 0 0 40px;margin-top:4px;min-height:90px;">
-
+                    <!-- FOOTER (Professional clean layout without waves) -->
+                    <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:15px 40px;margin-top:auto;min-height:90px;border-top:1px solid #e2e8f0;background:#f8fafc;">
                         <!-- Left: Terms & Conditions -->
-                        <div style="flex:1.3;text-align:left;padding-bottom:8px;font-size:8.5px;line-height:1.35;color:#475569;">
-                            <strong style="font-size:9px;color:#1e293b;text-decoration:underline;display:block;margin-bottom:3px;text-transform:uppercase;font-family:'Outfit',sans-serif;">Terms &amp; Conditions</strong>
+                        <div style="flex:1.2;text-align:left;padding-bottom:8px;font-size:8.5px;line-height:1.35;color:#475569;">
+                            <strong style="font-size:9.5px;color:#0f172a;display:block;margin-bottom:4px;text-transform:uppercase;font-family:'Outfit',sans-serif;letter-spacing:0.5px;">Terms &amp; Conditions</strong>
                             <div style="font-weight:500;">
                                 ${q.termsConditions ? q.termsConditions.replace(/\n/g, '<br>') : `
                                 1. THIS IS A QUOTATION — NOT A TAX INVOICE.<br>
@@ -651,35 +656,18 @@
                                 4. SUBJECT TO ${(s.city || 'LOCAL').toUpperCase()} JURISDICTION.<br>
                                 5. PAYMENT TERMS AS AGREED.`}
                             </div>
-                            ${q.notes ? `<div style="margin-top:4px;color:#003366;font-weight:700;font-size:8.5px;">Note: ${q.notes}</div>` : ''}
+                            ${q.notes ? `<div style="margin-top:6px;color:#3b82f6;font-weight:700;font-size:9px;">Note: ${q.notes}</div>` : ''}
                         </div>
 
-                        <!-- Center: Authorised signature -->
-                        <div style="flex:0.9;text-align:center;padding-bottom:8px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:85px;margin-left:20px;box-sizing:border-box;color:#003366;">
-                            <div style="font-weight:800;font-size:9px;text-transform:uppercase;margin-bottom:4px;font-family:'Outfit',sans-serif;">For ${compName}</div>
-                            ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height:32px;max-width:120px;display:block;margin-bottom:2px;">` : '<div style="height:32px;"></div>'}
-                            <div style="border-top:1px solid #003366;width:160px;padding-top:4px;font-weight:800;font-size:9px;text-transform:uppercase;text-align:center;font-family:'Outfit',sans-serif;">
+                        <!-- Right: Authorised signature -->
+                        <div style="flex:0.8;text-align:right;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;color:#0f172a;padding-bottom:8px;">
+                            <div style="font-weight:800;font-size:10px;text-transform:uppercase;margin-bottom:6px;font-family:'Outfit',sans-serif;">For ${compName}</div>
+                            ${s.showSignature && s.signature ? `<img src="${s.signature}" style="max-height:40px;max-width:140px;display:block;margin-bottom:6px;">` : '<div style="height:40px;"></div>'}
+                            <div style="border-top:2px solid #cbd5e1;width:150px;padding-top:4px;font-weight:800;font-size:9px;text-transform:uppercase;text-align:center;font-family:'Outfit',sans-serif;">
                                 Authorised Signatory
                             </div>
                         </div>
-
-                        <!-- Right: Wave block (same as invoice) -->
-                        <div style="position:relative;width:46%;height:90px;overflow:hidden;display:block;">
-                            <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position:absolute;bottom:0;left:0;width:100%;height:90px;z-index:1;">
-                                <path d="M 400,100 L 400,10 C 250,10 150,100 0,100 Z" fill="#bae6fd"/>
-                            </svg>
-                            <svg width="400" height="100" viewBox="0 0 400 100" preserveAspectRatio="none" style="position:absolute;bottom:0;left:0;width:100%;height:90px;z-index:2;">
-                                <path d="M 400,100 L 400,0 C 250,0 150,100 0,100 Z" fill="#003366"/>
-                            </svg>
-                            <div style="position:absolute;bottom:0;right:0;width:100%;height:80px;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;color:white;padding:0 40px 0 130px;text-align:right;box-sizing:border-box;">
-                                <div style="font-weight:800;font-family:'Outfit',sans-serif;font-size:11px;color:white;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Thank You!</div>
-                                <div style="font-size:8px;font-weight:600;color:#bae6fd;letter-spacing:0.5px;text-transform:uppercase;">Quality &amp; Reliability Delivered</div>
-                            </div>
-                        </div>
                     </div>
-
-                    <!-- Bottom blue strip -->
-                    <div style="background:#003366;height:8px;width:100%;border-radius:0 0 4px 4px;margin-top:2px;"></div>
                 </div>
             </div>`;
         }
@@ -725,6 +713,8 @@
             if (!pw) { alert('Pop-up blocked! Please allow pop-ups for this site.'); return; }
 
             pw.document.open();
+            const copyType = document.getElementById('f-copy-type') ? document.getElementById('f-copy-type').value : 'Customer Copy';
+            const html = buildQuotationHTML(viewingQuotation, copyType);
             pw.document.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -732,13 +722,13 @@
 <title>Quotation ${viewingQ.quotationNo || ''}</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4; margin: 10mm; }
+  @page { size: A4; margin: 0; }
   *, *::before, *::after {
     box-sizing: border-box;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  html, body { margin: 0; padding: 0; background: white; font-family: 'Outfit', sans-serif; }
+  html, body { margin: 0; padding: 10mm 0; background: white; font-family: 'Outfit', sans-serif; }
   #q-print-content {
     width: 190mm !important;
     height: 277mm !important;

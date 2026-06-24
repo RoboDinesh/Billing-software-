@@ -7,8 +7,12 @@ $conn = get_db_connection();
 
 // Multi-tenant helper
 function get_tenant_id() {
-    $headers = apache_request_headers();
-    return $headers['X-Company-ID'] ?? $headers['x-company-id'] ?? null;
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (isset($headers['X-Company-ID'])) return $headers['X-Company-ID'];
+        if (isset($headers['x-company-id'])) return $headers['x-company-id'];
+    }
+    return $_SERVER['HTTP_X_COMPANY_ID'] ?? null;
 }
 
 try {
@@ -128,7 +132,8 @@ try {
             $cust_json = json_encode($data['customer'] ?? []);
             $items_json = json_encode($data['items'] ?? []);
             $stmt = $conn->prepare("INSERT INTO invoices (id, invoice_no, invoice_date, due_date, customer_id, customer_json, items_json, subtotal, cgst, sgst, igst, total, notes, payment_status, paid_amount, terms_conditions, gst_type, company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("sssssssdddddssdsss", $data['id'], $data['invoiceNo'], $data['date'], $data['duedate'], $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $data['notes'], $data['paymentStatus'], $data['paidAmount'], $data['termsConditions'], $data['gstType'], $company_id);
+            $due_date = $data['duedate'] ?? null;
+            $stmt->bind_param("sssssssdddddssdsss", $data['id'], $data['invoiceNo'], $data['date'], $due_date, $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $data['notes'], $data['paymentStatus'], $data['paidAmount'], $data['termsConditions'], $data['gstType'], $company_id);
             echo json_encode(['ok' => $stmt->execute()]);
             break;
 
@@ -138,7 +143,8 @@ try {
             $cust_json = json_encode($data['customer'] ?? []);
             $items_json = json_encode($data['items'] ?? []);
             $stmt = $conn->prepare("UPDATE invoices SET invoice_no=?, invoice_date=?, due_date=?, customer_id=?, customer_json=?, items_json=?, subtotal=?, cgst=?, sgst=?, igst=?, total=?, notes=?, payment_status=?, paid_amount=?, terms_conditions=?, gst_type=? WHERE id=? AND company_id=?");
-            $stmt->bind_param("sssssssdddddssdsss", $data['invoiceNo'], $data['date'], $data['duedate'], $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $data['notes'], $data['paymentStatus'], $data['paidAmount'], $data['termsConditions'], $data['gstType'], $data['id'], $company_id);
+            $due_date = $data['duedate'] ?? null;
+            $stmt->bind_param("sssssssdddddssdsss", $data['invoiceNo'], $data['date'], $due_date, $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $data['notes'], $data['paymentStatus'], $data['paidAmount'], $data['termsConditions'], $data['gstType'], $data['id'], $company_id);
             echo json_encode(['ok' => $stmt->execute()]);
             break;
 
@@ -162,7 +168,8 @@ try {
             $cust_json = json_encode($data['customer'] ?? []);
             $items_json = json_encode($data['items'] ?? []);
             $stmt = $conn->prepare("INSERT INTO quotations (id, quotation_no, quotation_date, customer_id, customer_json, items_json, subtotal, cgst, sgst, igst, total, valid_until, status, gst_type, terms_conditions, notes, company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssssdddddssssss", $data['id'], $data['quotationNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $data['validUntil'], $data['status'], $data['gstType'], $data['termsConditions'], $data['notes'], $company_id);
+            $valid_until = $data['validUntil'] ?? null;
+            $stmt->bind_param("ssssssdddddssssss", $data['id'], $data['quotationNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $valid_until, $data['status'], $data['gstType'], $data['termsConditions'], $data['notes'], $company_id);
             echo json_encode(['ok' => $stmt->execute()]);
             break;
 
@@ -172,7 +179,8 @@ try {
             $cust_json = json_encode($data['customer'] ?? []);
             $items_json = json_encode($data['items'] ?? []);
             $stmt = $conn->prepare("UPDATE quotations SET quotation_no=?, quotation_date=?, customer_id=?, customer_json=?, items_json=?, subtotal=?, cgst=?, sgst=?, igst=?, total=?, valid_until=?, status=?, gst_type=?, terms_conditions=?, notes=? WHERE id=? AND company_id=?");
-            $stmt->bind_param("sssssdddddsssssss", $data['quotationNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $data['validUntil'], $data['status'], $data['gstType'], $data['termsConditions'], $data['notes'], $data['id'], $company_id);
+            $valid_until = $data['validUntil'] ?? null;
+            $stmt->bind_param("sssssdddddsssssss", $data['quotationNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $data['subtotal'], $data['totalCGST'], $data['totalSGST'], $data['totalIGST'], $data['grandTotal'], $valid_until, $data['status'], $data['gstType'], $data['termsConditions'], $data['notes'], $data['id'], $company_id);
             echo json_encode(['ok' => $stmt->execute()]);
             break;
 
@@ -196,7 +204,12 @@ try {
             $cust_json = json_encode($data['customer'] ?? []);
             $items_json = json_encode($data['items'] ?? []);
             $stmt = $conn->prepare("INSERT INTO challans (id, challan_no, challan_date, customer_id, customer_json, items_json, vehicle_no, status, terms_conditions, notes, reference_no, company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssssssssss", $data['id'], $data['challanNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $data['vehicleNo'], $data['status'], $data['termsConditions'], $data['notes'], $data['referenceNo'], $company_id);
+            $vehicle_no = $data['vehicleNo'] ?? '';
+            $status = $data['status'] ?? 'active';
+            $terms = $data['termsConditions'] ?? '';
+            $notes = $data['notes'] ?? '';
+            $ref_no = $data['referenceNo'] ?? '';
+            $stmt->bind_param("ssssssssssss", $data['id'], $data['challanNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $vehicle_no, $status, $terms, $notes, $ref_no, $company_id);
             echo json_encode(['ok' => $stmt->execute()]);
             break;
 
@@ -206,7 +219,12 @@ try {
             $cust_json = json_encode($data['customer'] ?? []);
             $items_json = json_encode($data['items'] ?? []);
             $stmt = $conn->prepare("UPDATE challans SET challan_no=?, challan_date=?, customer_id=?, customer_json=?, items_json=?, vehicle_no=?, status=?, terms_conditions=?, notes=?, reference_no=? WHERE id=? AND company_id=?");
-            $stmt->bind_param("ssssssssssss", $data['challanNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $data['vehicleNo'], $data['status'], $data['termsConditions'], $data['notes'], $data['referenceNo'], $data['id'], $company_id);
+            $vehicle_no = $data['vehicleNo'] ?? '';
+            $status = $data['status'] ?? 'active';
+            $terms = $data['termsConditions'] ?? '';
+            $notes = $data['notes'] ?? '';
+            $ref_no = $data['referenceNo'] ?? '';
+            $stmt->bind_param("ssssssssssss", $data['challanNo'], $data['date'], $data['customerId'], $cust_json, $items_json, $vehicle_no, $status, $terms, $notes, $ref_no, $data['id'], $company_id);
             echo json_encode(['ok' => $stmt->execute()]);
             break;
 
